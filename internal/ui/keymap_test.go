@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/miguelmartens/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/keys"
 )
 
 // listWith builds a loaded model holding count keys, tall enough to paginate.

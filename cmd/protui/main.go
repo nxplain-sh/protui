@@ -11,8 +11,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/miguelmartens/protui/internal/passcli"
-	"github.com/miguelmartens/protui/internal/ui"
+	"github.com/nxplain-sh/protui/internal/passcli"
+	"github.com/nxplain-sh/protui/internal/ui"
 )
 
 // version is overridden at build time via -ldflags.

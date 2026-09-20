@@ -32,8 +32,11 @@ pass-cli info
 ## Install
 
 ```sh
-go install github.com/miguelmartens/protui/cmd/protui@latest
+go install github.com/nxplain-sh/protui/cmd/protui@latest
 ```
+
+Prebuilt binaries for macOS and Linux are attached to each
+[release](https://github.com/nxplain-sh/protui/releases).
 
 Or from a clone:
 

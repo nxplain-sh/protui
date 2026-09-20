@@ -1,4 +1,4 @@
-module github.com/miguelmartens/protui
+module github.com/nxplain-sh/protui
 
 go 1.27.0
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/miguelmartens/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/keys"
 )
 
 // The parsers below are pure functions over bytes so they can be exercised

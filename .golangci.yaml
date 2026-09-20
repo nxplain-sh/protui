@@ -49,4 +49,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/miguelmartens/protui
+        - github.com/nxplain-sh/protui

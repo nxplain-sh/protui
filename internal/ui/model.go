@@ -18,8 +18,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/miguelmartens/protui/internal/keys"
-	"github.com/miguelmartens/protui/internal/passcli"
+	"github.com/nxplain-sh/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/passcli"
 )
 
 // maxPublicKeyFetches bounds how many `item view` calls run at once.

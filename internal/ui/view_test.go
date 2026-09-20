@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/miguelmartens/protui/internal/keys"
-	"github.com/miguelmartens/protui/internal/passcli"
+	"github.com/nxplain-sh/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/passcli"
 )
 
 // These are render smoke tests. They drive the model with synthetic messages

@@ -7,8 +7,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/miguelmartens/protui/internal/keys"
-	"github.com/miguelmartens/protui/internal/passcli"
+	"github.com/nxplain-sh/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/passcli"
 )
 
 // Form field indices, in tab order.

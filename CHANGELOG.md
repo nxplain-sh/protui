@@ -50,4 +50,4 @@ pending a first tagged version.
 - [`docs/adr/`](docs/adr/README.md) records the architecture decisions, with the
   alternatives considered and what each choice cost.
 
-[unreleased]: https://github.com/miguelmartens/protui/commits/main
+[unreleased]: https://github.com/nxplain-sh/protui/commits/main

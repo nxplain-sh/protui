@@ -14,11 +14,9 @@ You need:
 - **Node** — only for `prettier`, fetched on demand via `npx`.
 - **`golangci-lint`** — optional. The lint target skips it with a note when it
   is absent, but CI runs it, so installing it saves a round trip.
-- **[`pre-commit`](https://pre-commit.com/#install)** — optional, and only
-  needed if you want the hooks below.
 
 ```sh
-git clone https://github.com/miguelmartens/protui
+git clone https://github.com/nxplain-sh/protui
 cd protui
 make check   # tidy, lint, test — the same checks CI runs
 make hooks   # optional: run those checks on every commit
@@ -26,15 +24,20 @@ make hooks   # optional: run those checks on every commit
 
 `make help` lists every target.
 
-### The pre-commit hooks
+### The pre-commit hook
 
-`make hooks` installs [`.pre-commit-config.yaml`](.pre-commit-config.yaml),
-which runs `gofmt`, `prettier`, `go vet`, `golangci-lint` and `go test` before
-each commit. Every hook shells out to a Makefile target, so the hooks and
-`make check` cannot drift apart.
+`make hooks` points git's `core.hooksPath` at
+[`.githooks/pre-commit`](.githooks/pre-commit), which runs `gofmt`, `prettier`,
+`go vet`, `golangci-lint` and `go test` before each commit. The hook shells out
+to Makefile targets, so the hook and `make check` cannot drift apart. Git reads
+that setting from repository config, so it is one command per clone:
 
-Hooks are scoped by what you touched — a Markdown-only commit does not run the
-Go checks — and `git commit --no-verify` skips them when you need it.
+```sh
+git config core.hooksPath .githooks
+```
+
+The hook is scoped by what the commit touches — a Markdown-only commit does not
+run the Go checks — and `git commit --no-verify` skips it when you need it.
 
 ## Before you open a pull request
 
