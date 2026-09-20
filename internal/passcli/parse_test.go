@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/miguelmartens/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/keys"
 )
 
 // fixture reads a testdata file, failing the test if it is missing.

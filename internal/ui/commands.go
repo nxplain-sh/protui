@@ -7,8 +7,8 @@ import (
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/miguelmartens/protui/internal/keys"
-	"github.com/miguelmartens/protui/internal/passcli"
+	"github.com/nxplain-sh/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/passcli"
 )
 
 // Every pass-cli call runs inside a tea.Cmd and reports back as a message, so

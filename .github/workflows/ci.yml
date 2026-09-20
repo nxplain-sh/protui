@@ -89,7 +89,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
-      - run: npx --yes prettier --check .
+      - name: Check formatting
+        run: make format-check
 
   vulncheck:
     name: Vulnerabilities

@@ -8,7 +8,7 @@ than a footnote.
 
 Please report privately, not in a public issue.
 
-Use GitHub's **[private vulnerability reporting](https://github.com/miguelmartens/protui/security/advisories/new)**
+Use GitHub's **[private vulnerability reporting](https://github.com/nxplain-sh/protui/security/advisories/new)**
 — the _Report a vulnerability_ button under the repository's Security tab. It
 opens a channel visible only to the maintainers.
 

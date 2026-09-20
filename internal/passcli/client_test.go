@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/miguelmartens/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/keys"
 )
 
 // recorder captures what a wrapper would have executed, so argument

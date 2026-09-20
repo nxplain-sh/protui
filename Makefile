@@ -102,17 +102,12 @@ tidy:
 .PHONY: check
 check: tidy lint test
 
-## hooks: install the git pre-commit hooks
-# Unlike golangci-lint this does not degrade to a note: asking for the hooks
-# and silently not getting them is worse than being told to install the tool.
+## hooks: install the git pre-commit hook
+# Git only reads core.hooksPath from repository config, so this one line cannot
+# ship itself with the checkout.
 .PHONY: hooks
 hooks:
-	@if command -v pre-commit >/dev/null 2>&1; then \
-		pre-commit install; \
-	else \
-		echo "pre-commit not installed (see https://pre-commit.com/#install)"; \
-		exit 1; \
-	fi
+	git config core.hooksPath .githooks
 
 ## clean: remove build artefacts
 .PHONY: clean

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/miguelmartens/protui/internal/keys"
+	"github.com/nxplain-sh/protui/internal/keys"
 )
 
 // KeyType is a generatable SSH key algorithm, matching --key-type upstream.
