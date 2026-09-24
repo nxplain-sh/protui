@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbles/v2 v2.2.1
-	github.com/charmbracelet/bubbletea/v2 v2.0.9
+	github.com/charmbracelet/bubbletea/v2 v2.0.10
 	github.com/charmbracelet/lipgloss/v2 v2.0.6
 	github.com/muesli/termenv v0.16.0
 	golang.org/x/crypto v0.57.0
