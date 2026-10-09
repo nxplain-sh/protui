@@ -8,7 +8,7 @@ require (
 	github.com/charmbracelet/bubbletea/v2 v2.0.9
 	github.com/charmbracelet/lipgloss/v2 v2.0.6
 	github.com/muesli/termenv v0.16.0
-	golang.org/x/crypto v0.57.0
+	golang.org/x/crypto v0.58.0
 )
 
 require (
