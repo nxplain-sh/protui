@@ -1,7 +1,7 @@
 {
   "name": "protui",
   "private": true,
-  "description": "Tooling-only manifest: prettier formats the non-Go files in this repository. protui itself is a Rust program and needs no Node.js to build or run.",
+  "description": "Tooling-only manifest: prettier formats the Markdown, JSON and YAML in this repository. protui itself is a Rust program and needs no Node.js to build or run.",
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check ."

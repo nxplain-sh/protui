@@ -1,6 +1,7 @@
-# protui
-
-A terminal UI for managing your Proton Pass SSH keys.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.png">
+  <img alt="protui — a terminal UI for your Proton Pass SSH keys" src="docs/assets/banner-light.png">
+</picture>
 
 > **protui is not affiliated with, endorsed by, or supported by Proton AG.**
 > It is an unofficial front-end that drives the official `pass-cli` binary.
@@ -31,13 +32,41 @@ pass-cli info
 
 ## Install
 
+### Prebuilt binary
+
+Download the archive for your platform from the
+[latest release](https://github.com/nxplain-sh/protui/releases/latest):
+
+| Platform             | Archive                                              |
+| -------------------- | ---------------------------------------------------- |
+| macOS, Apple silicon | `protui_<version>_aarch64-apple-darwin.tar.gz`       |
+| macOS, Intel         | `protui_<version>_x86_64-apple-darwin.tar.gz`        |
+| Linux, x86-64        | `protui_<version>_x86_64-unknown-linux-musl.tar.gz`  |
+| Linux, ARM64         | `protui_<version>_aarch64-unknown-linux-musl.tar.gz` |
+
+The Linux binaries are statically linked, so they run on any distribution.
+Windows is not supported.
+
+Each release also carries `checksums.txt`. Download it beside the archive,
+check, unpack, and put `protui` somewhere on your `PATH`:
+
+```sh
+shasum -a 256 --check --ignore-missing checksums.txt # sha256sum on Linux
+tar -xzf protui_<version>_<target>.tar.gz
+mv protui_<version>_<target>/protui ~/.local/bin/
+```
+
+The binaries are not signed. On macOS, one downloaded with a browser is
+quarantined and Gatekeeper refuses to run it; clear that with
+`xattr -d com.apple.quarantine ~/.local/bin/protui`.
+
+### For Rust developers
+
+Building from source needs Rust 1.88 or newer:
+
 ```sh
 cargo install --locked --git https://github.com/nxplain-sh/protui protui
 ```
-
-Prebuilt binaries for macOS and Linux are attached to each
-[release](https://github.com/nxplain-sh/protui/releases). The Linux ones are
-statically linked, so they run on any distribution.
 
 Or from a clone:
 
@@ -45,8 +74,6 @@ Or from a clone:
 cargo xtask build   # → target/release/protui
 cargo xtask install # → ~/.cargo/bin/protui
 ```
-
-Building needs Rust 1.88 or newer. macOS and Linux; Windows is not supported.
 
 ## Use
 
