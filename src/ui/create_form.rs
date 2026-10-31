@@ -297,10 +297,11 @@ impl CreateForm {
             return (area.x + 1, area.y, area.width.saturating_sub(2));
         }
 
-        let glyphs = if focused { &HEAVY } else { &LIGHT };
-        draw::outline(buf, area, glyphs, theme.text(theme.ink));
+        let ink = theme.text(theme.ink);
         if focused {
-            draw::shadow(buf, area, theme.shadow);
+            draw::outline_with_shadow(buf, area, &HEAVY, ink, theme.shadow);
+        } else {
+            draw::outline(buf, area, &LIGHT, ink);
         }
         (area.x + 2, area.y + 1, area.width.saturating_sub(4))
     }

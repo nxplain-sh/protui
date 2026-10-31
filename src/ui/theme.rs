@@ -33,6 +33,10 @@ pub const GLYPH_NOTE: &str = "▸";
 pub const GLYPH_UPPER_HALF: &str = "▀";
 pub const GLYPH_LOWER_HALF: &str = "▄";
 pub const GLYPH_FULL: &str = "█";
+pub const GLYPH_LEFT_HALF: &str = "▌";
+pub const GLYPH_RIGHT_HALF: &str = "▐";
+/// The quadrants of a joined shadow's corner: upper right, and the lower half.
+pub const GLYPH_SHADOW_CORNER: &str = "▟";
 pub const GLYPH_THIN_RULE: &str = "─";
 
 /// The pieces of a box outline.
@@ -45,7 +49,6 @@ pub struct BoxGlyphs {
     pub bottom_left: &'static str,
     pub bottom_right: &'static str,
     pub tee_left: &'static str,
-    pub tee_right: &'static str,
 }
 
 /// The default outline: panes, dialogs and focused inputs.
@@ -57,7 +60,6 @@ pub const HEAVY: BoxGlyphs = BoxGlyphs {
     bottom_left: "┗",
     bottom_right: "┛",
     tee_left: "┣",
-    tee_right: "┫",
 };
 
 /// The outline of an input that does not have focus.
@@ -69,7 +71,6 @@ pub const LIGHT: BoxGlyphs = BoxGlyphs {
     bottom_left: "└",
     bottom_right: "┘",
     tee_left: "├",
-    tee_right: "┤",
 };
 
 /// One token, as `[red, green, blue]`, for each background.

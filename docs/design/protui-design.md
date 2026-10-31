@@ -11,7 +11,7 @@ block-element glyphs. No emoji, no Nerd Font glyphs.
 ## The seven rules
 
 1. Borders are ink and heavy (`┏━┓┃┗┛┣┫`). Never faint grey.
-2. Shadows are solid: 1 column right, half a row down (built from `▄` `▀` and filled cells). A cell is about twice as tall as it is wide, so that is the same distance both ways.
+2. Shadows are solid: 1 column right, half a row down (built from block elements and filled cells). A cell is about twice as tall as it is wide, so that is the same distance both ways. A box's shadow is joined to its border.
 3. Coloured fills always carry ink (`#111111`) text. Never white on colour.
 4. One filled band per surface: the header, the selected row, a dialog's title band.
 5. The key algorithm is a colour chip, so the list scans without reading.
@@ -61,26 +61,29 @@ If the terminal does not advertise truecolor (`COLORTERM` is not `truecolor` or
 | --------------------------- | ----------------------------- |
 | Heavy box (default)         | `┏ ━ ┓ ┃ ┗ ┛ ┣ ┫`             |
 | Light box (unfocused input) | `┌ ─ ┐ │ └ ┘`                 |
-| Shadows / thick rules       | `▀ ▄` and filled cells        |
+| Shadows / thick rules       | `▀ ▄ ▌ ▐ ▟` and filled cells  |
 | Marks                       | `◆ ▶ ● ○ ◐ ✓ ✗ ‹ › • · ↑ ↓ ▸` |
 
 ## Components
 
 ### Shadow
 
-For a rectangle at `(x, y)` of size `w × h`, the same for every surface:
+Every shadow is offset 1 column right and half a row down: the same distance
+both ways, since a cell is about twice as tall as it is wide.
 
-- Column `x+w`: row `y` gets `▄` in the shadow colour; rows `y+1 … y+h-1` are solid shadow.
-- Row `y+h`: columns `x+1 … x+w` get `▀` in the shadow colour.
-
-Shadows were first specified two columns deep for panes and dialogs. Against
-a half-row drop that leans twice as far sideways as down, so every shadow is
-now one column deep. The reference grids below still show the two-column
-version; the text wins.
-
+- **A filled block** at `(x, y)`, `w × h` — the selected row, buttons, the
+  agent's status chip: column `x+w` gets `▄` on row `y` and solid shadow on
+  rows `y+1 … y+h-1`; row `y+h` gets `▀` on columns `x+1 … x+w`.
+- **An outlined box** — panes, dialogs, the empty and error boxes, focused
+  inputs: a box-drawing line runs through the middle of its cell, so a shadow
+  in the cells beyond it floats half a cell away and reads as a second
+  outline. The right and bottom edges become the shadow instead, solid from
+  the line outwards: `▐` on the right border with `▌` beside it, `▄` along the
+  bottom border, `▟` at the corner. A tee rule stops at the shadowed edge.
 - Clip to the screen. Draw after the backdrop and before anything that sits on top.
 
-One helper, used everywhere. It is the single most recognisable element of the style.
+The reference grids below were drawn with two-column shadows set apart from
+the box; the text wins.
 
 ### Header (rows 0–3)
 

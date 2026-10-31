@@ -15,7 +15,8 @@ use ratatui::text::Line;
 
 use crate::ui::text;
 use crate::ui::theme::{
-    BoxGlyphs, GLYPH_FULL, GLYPH_LOWER_HALF, GLYPH_SEPARATOR, GLYPH_UPPER_HALF, Theme,
+    BoxGlyphs, GLYPH_FULL, GLYPH_LEFT_HALF, GLYPH_LOWER_HALF, GLYPH_RIGHT_HALF, GLYPH_SEPARATOR,
+    GLYPH_SHADOW_CORNER, GLYPH_UPPER_HALF, Theme,
 };
 
 /// Writes `content` at `(x, y)` in at most `width` columns, and returns the
@@ -80,18 +81,18 @@ pub fn outline(buf: &mut Buffer, area: Rect, glyphs: &BoxGlyphs, style: Style) {
     symbol(buf, right, bottom, glyphs.bottom_right, style);
 }
 
-/// Draws a rule across the box `area` at row `y`, joined to its sides.
+/// Draws a rule across a box drawn by [`outline_with_shadow`] at row `y`,
+/// joined to its left side. The right side is the box's shadow, which the rule
+/// stops short of rather than cutting through.
 pub fn tee(buf: &mut Buffer, area: Rect, y: u16, glyphs: &BoxGlyphs, style: Style) {
     if area.width < 2 {
         return;
     }
 
-    let right = area.right() - 1;
     symbol(buf, area.left(), y, glyphs.tee_left, style);
-    for x in area.left() + 1..right {
+    for x in area.left() + 1..area.right() - 1 {
         symbol(buf, x, y, glyphs.horizontal, style);
     }
-    symbol(buf, right, y, glyphs.tee_right, style);
 }
 
 /// Draws the hard shadow of `area`, one column to the right and half a row
@@ -107,6 +108,37 @@ pub fn shadow(buf: &mut Buffer, area: Rect, color: Color) {
     for x in area.left().saturating_add(1)..=right {
         shade(buf, x, area.bottom(), GLYPH_UPPER_HALF, color);
     }
+}
+
+/// Draws the outline of `area` with its hard shadow joined to it.
+///
+/// A box-drawing line runs through the middle of its cell, so a shadow in the
+/// cells beyond it, as [`shadow`] draws for a filled block, would float half a
+/// cell away and read as a second outline. Here the right and bottom edges
+/// become the shadow instead, solid from the line outwards: one column wide
+/// and half a row deep, the offset a filled block's shadow has.
+pub fn outline_with_shadow(
+    buf: &mut Buffer,
+    area: Rect,
+    glyphs: &BoxGlyphs,
+    style: Style,
+    color: Color,
+) {
+    outline(buf, area, glyphs, style);
+    if area.width < 2 || area.height < 2 {
+        return;
+    }
+
+    let (right, bottom) = (area.right() - 1, area.bottom() - 1);
+    for y in area.top() + 1..bottom {
+        shade(buf, right, y, GLYPH_RIGHT_HALF, color);
+        shade(buf, area.right(), y, GLYPH_LEFT_HALF, color);
+    }
+    for x in area.left() + 1..right {
+        shade(buf, x, bottom, GLYPH_LOWER_HALF, color);
+    }
+    shade(buf, right, bottom, GLYPH_SHADOW_CORNER, color);
+    shade(buf, area.right(), bottom, GLYPH_LEFT_HALF, color);
 }
 
 /// Draws ` label ` and returns its width.
@@ -234,14 +266,34 @@ mod tests {
     }
 
     #[test]
+    fn an_outlined_box_takes_its_shadow_into_its_right_and_bottom_edges() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 6, 4));
+
+        outline_with_shadow(
+            &mut buf,
+            Rect::new(0, 0, 5, 4),
+            &HEAVY,
+            Style::new(),
+            Color::Reset,
+        );
+
+        assert_eq!(rows(&buf), ["┏━━━┓ ", "┃   ▐▌", "┃   ▐▌", "┗▄▄▄▟▌"]);
+    }
+
+    #[test]
     fn an_outline_and_tee_use_the_given_glyphs() {
-        let mut buf = Buffer::empty(Rect::new(0, 0, 4, 4));
-        let area = buf.area;
+        let mut buf = Buffer::empty(Rect::new(0, 0, 5, 4));
 
-        outline(&mut buf, area, &HEAVY, Style::new());
-        tee(&mut buf, area, 2, &HEAVY, Style::new());
+        outline_with_shadow(
+            &mut buf,
+            Rect::new(0, 0, 4, 4),
+            &HEAVY,
+            Style::new(),
+            Color::Reset,
+        );
+        tee(&mut buf, Rect::new(0, 0, 4, 4), 2, &HEAVY, Style::new());
 
-        assert_eq!(rows(&buf), ["┏━━┓", "┃  ┃", "┣━━┫", "┗━━┛"]);
+        assert_eq!(rows(&buf), ["┏━━┓ ", "┃  ▐▌", "┣━━▐▌", "┗▄▄▟▌"]);
     }
 
     #[test]

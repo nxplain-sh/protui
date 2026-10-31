@@ -493,8 +493,7 @@ impl Model {
             slot.height,
         );
         draw::clear(buf, rect);
-        draw::shadow(buf, rect, theme.shadow);
-        draw::outline(buf, rect, &HEAVY, theme.text(theme.ink));
+        draw::outline_with_shadow(buf, rect, &HEAVY, theme.text(theme.ink), theme.shadow);
 
         let inner = rect.inner(Margin::new(1, 1));
         let x = inner.x + 2;
@@ -917,8 +916,7 @@ impl Model {
         if let Some(fill) = fill {
             draw::fill(buf, rect.inner(Margin::new(1, 1)), theme.fill(fill));
         }
-        draw::shadow(buf, rect, theme.shadow);
-        draw::outline(buf, rect, &HEAVY, theme.text(theme.ink));
+        draw::outline_with_shadow(buf, rect, &HEAVY, theme.text(theme.ink), theme.shadow);
         rect
     }
 
@@ -1031,8 +1029,7 @@ impl Model {
             theme.shadow
         };
         draw::clear(buf, rect);
-        draw::shadow(buf, rect, shadow);
-        draw::outline(buf, rect, &HEAVY, theme.text(theme.ink));
+        draw::outline_with_shadow(buf, rect, &HEAVY, theme.text(theme.ink), shadow);
 
         let inner = rect.inner(Margin::new(1, 1));
         let band = Rect::new(inner.x, inner.y, inner.width, inner.height.min(3));
@@ -1222,8 +1219,7 @@ impl Model {
         );
 
         let input = Rect::new(body.x, body.y + INPUT_ROW, body.width.saturating_sub(2), 3);
-        draw::outline(buf, input, &HEAVY, theme.text(theme.ink));
-        draw::shadow(buf, input, theme.red);
+        draw::outline_with_shadow(buf, input, &HEAVY, theme.text(theme.ink), theme.red);
 
         let count = format!(
             "{}/{}",
