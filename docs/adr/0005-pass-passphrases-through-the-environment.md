@@ -64,3 +64,13 @@ passphrase is set, and that the caller's buffer is zeroed on return.
 `PROTON_PASS_NO_UPDATE_CHECK=1` is also set on every invocation, unrelated to
 secrecy — it suppresses an auto-update probe that adds latency and can write
 unexpected lines to the output being parsed.
+
+## Amended 2026-10-30
+
+protui is now Rust ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)), which changes the wiping story for the better.
+The passphrase lives in one buffer, allocated at full size before the first
+keystroke so that typing never reallocates and strands a copy, and that buffer
+is moved — not copied — from the form to the request to the client, and zeroed
+when the request is dropped. The remaining copy protui cannot reach is the
+environment block the standard library builds while spawning the child; it is
+freed, unzeroed, as soon as the child has started.

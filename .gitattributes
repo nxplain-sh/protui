@@ -3,16 +3,15 @@
 
 # Explicit for the file types this repo actually contains, so nothing is left
 # to heuristics.
-*.go        text eol=lf diff=golang
-*.mod       text eol=lf
-*.sum       text eol=lf
+*.rs        text eol=lf diff=rust
+*.toml      text eol=lf
+*.lock      text eol=lf
 *.md        text eol=lf
 *.json      text eol=lf
 *.yml       text eol=lf
 *.yaml      text eol=lf
 *.txt       text eol=lf
-*.sh        text eol=lf
-Makefile    text eol=lf
+.githooks/*    text eol=lf
 .gitignore  text eol=lf
 .gitattributes text eol=lf
 .editorconfig  text eol=lf
@@ -20,7 +19,7 @@ Makefile    text eol=lf
 
 # Test fixtures must round-trip byte for byte; CRLF would change what the
 # parsers see.
-internal/passcli/testdata/** text eol=lf
+src/passcli/testdata/** text eol=lf
 
 # Binaries and archives are never touched.
 *.png    binary
@@ -31,5 +30,4 @@ internal/passcli/testdata/** text eol=lf
 *.zip    binary
 
 # Keep generated and vendored code out of diffs and language statistics.
-vendor/**    linguist-vendored
-go.sum       linguist-generated -diff
+Cargo.lock   linguist-generated -diff

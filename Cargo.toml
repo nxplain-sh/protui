@@ -1,0 +1,75 @@
+[package]
+name = "protui"
+version = "0.1.0"
+categories = ["command-line-utilities"]
+edition.workspace = true
+keywords = ["proton-pass", "ssh", "tui", "ratatui"]
+license.workspace = true
+publish = false
+readme = "README.md"
+repository = "https://github.com/nxplain-sh/protui"
+rust-version.workspace = true
+description = """
+An unofficial terminal UI for managing Proton Pass SSH keys, driving the
+official pass-cli binary.
+"""
+
+[dependencies]
+crossterm = { version = "0.29.0", features = ["event-stream"] }
+futures-util = { version = "0.3.34", default-features = false }
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm", "layout-cache"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+ssh-key = { version = "0.6.7", default-features = false, features = ["alloc", "ecdsa"] }
+terminal-colorsaurus = "1.0.3"
+unicode-width = "0.2.3"
+zeroize = "1.9.1"
+
+[dependencies.tokio]
+version = "1.54.1"
+default-features = false
+features = ["io-util", "macros", "process", "rt", "signal", "sync", "time"]
+
+[lints]
+workspace = true
+
+[profile.release]
+codegen-units = 1
+lto = true
+# The panic hook restores the terminal before the process exits, so unwinding
+# buys nothing a user would see.
+panic = "abort"
+strip = true
+
+# The workspace is protui plus `xtask`, the project's automation, run as
+# `cargo xtask <task>`.
+[workspace]
+members = ["xtask"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+rust-version = "1.88"
+
+[workspace.lints.clippy]
+# A silenced lint says why, with `#[expect(…, reason = "…")]`.
+allow_attributes_without_reason = "warn"
+# A TUI is index arithmetic over terminal cells; u16 <-> usize conversions are
+# bounded by the screen size, and annotating each one would bury the layout.
+cast_possible_truncation = "allow"
+dbg_macro = "warn"
+# Modules live in self-named files (`passcli.rs` beside `passcli/`), never
+# `mod.rs`.
+mod_module_files = "warn"
+# Failures are reported as values; a panic is a bug, and only tests assert.
+panic = "warn"
+pedantic = { level = "warn", priority = -1 }
+# Google's Rust style guide: build strings with `format!`, not `+`.
+string_add = "warn"
+todo = "warn"
+# A panic that is genuinely an invariant says why, with `expect`.
+unwrap_used = "warn"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_qualifications = "warn"

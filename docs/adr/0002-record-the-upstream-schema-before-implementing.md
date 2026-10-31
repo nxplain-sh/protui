@@ -56,3 +56,8 @@ The document is honest about its gaps. At capture time the account held no SSH
 key items, so the `ssh_key` spelling of `item_type` is read from source rather
 than observed. That is recorded rather than glossed over, because a reader who
 assumes everything was verified would trust it too much.
+
+## Amended 2026-10-30
+
+The implementation moved from Go to Rust ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). The trap is the same:
+an RFC 3339 parser, in any language, rejects the zoneless timestamps.

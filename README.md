@@ -32,20 +32,21 @@ pass-cli info
 ## Install
 
 ```sh
-go install github.com/nxplain-sh/protui/cmd/protui@latest
+cargo install --locked --git https://github.com/nxplain-sh/protui protui
 ```
 
 Prebuilt binaries for macOS and Linux are attached to each
-[release](https://github.com/nxplain-sh/protui/releases).
+[release](https://github.com/nxplain-sh/protui/releases). The Linux ones are
+statically linked, so they run on any distribution.
 
 Or from a clone:
 
 ```sh
-make build   # → bin/protui
-make install # → $GOBIN/protui
+cargo xtask build   # → target/release/protui
+cargo xtask install # → ~/.cargo/bin/protui
 ```
 
-Requires Go 1.27 or newer. macOS and Linux; Windows is not supported.
+Building needs Rust 1.88 or newer. macOS and Linux; Windows is not supported.
 
 ## Use
 
@@ -130,10 +131,18 @@ separate field, because that is the only place upstream keeps it.
 - **Nothing secret is passed as a command-line argument.** Arguments are visible
   to any user on the machine via `ps`. A passphrase, when you set one, is
   handed to `pass-cli` through the `PROTON_PASS_SSH_KEY_PASSWORD` environment
-  variable instead, and the buffer holding it is wiped once the child process
-  has it. (The environment string itself is an immutable Go string and cannot be
-  explicitly zeroed; it lives until garbage collected. It is never written to
-  argv, disk, or logs.)
+  variable instead. protui holds it in exactly one buffer, allocated up front
+  so typing never leaves stale copies behind, and zeroes it once the child
+  process has it. (The standard library copies the child's environment while
+  spawning it, and that copy cannot be wiped; it is freed as soon as the child
+  has started. It is never written to argv, disk, or logs.)
+- **No inherited passphrase.** `PROTON_PASS_SSH_KEY_PASSWORD` and
+  `PROTON_PASS_SSH_KEY_PASSWORD_FILE` are stripped from the environment
+  `pass-cli` inherits, so one exported in your shell cannot silently protect a
+  key you created without a passphrase.
+- **No value can be mistaken for a flag.** Every value protui passes — a title,
+  a comment, an id — is attached to its flag as `--flag=value`, so one that
+  begins with `-` is read as the value it is.
 - **`--show-secrets` is never passed.** protui reads only the redacted item
   summary, which upstream guarantees carries no user secret material.
 - **The UI displays public keys and fingerprints only.**
@@ -147,23 +156,26 @@ separate field, because that is the only place upstream keeps it.
   kitty, iTerm2, WezTerm and foot all honour — **write to your clipboard**,
   which matters here because putting a key on the clipboard is what protui is
   for. Terminal escape sequences and bidirectional overrides are stripped at
-  the point the text enters, in `internal/passcli`.
-- **Dependencies are scanned in CI** with
-  [govulncheck](https://go.dev/blog/govulncheck), and `gosec` runs as part of
-  the lint step.
+  the point the text enters, in `src/passcli`.
+- **No `unsafe` code.** The crate forbids it, so memory safety is the
+  compiler's guarantee rather than a reviewer's.
+- **Dependencies are checked in CI** with
+  [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) against the
+  [RustSec](https://rustsec.org) advisory database, alongside a licence and
+  source policy, and clippy runs with every warning treated as an error.
 
 ## How it fits together
 
 ```
-cmd/protui        entry point; preflight checks, then hands off to the UI
-internal/passcli  the only package that executes pass-cli
-internal/keys     domain types, independent of the upstream JSON shape
-internal/ui       Bubble Tea models; the update loop does no I/O
+src/main.rs       entry point; preflight checks, then hands off to the UI
+src/passcli/      the only module that runs pass-cli
+src/keys/         domain types, independent of the upstream JSON shape
+src/ui/           the ratatui interface; the update loop does no I/O
 ```
 
-`internal/passcli` is the single seam against upstream. Everything else depends
-on it rather than on `os/exec`, so an upstream change is contained to one
-package.
+`src/passcli` is the single seam against upstream. Everything else depends on
+it rather than on `std::process`, so an upstream change is contained to one
+module.
 
 The reasoning behind these choices — and the ones that are not visible in the
 code, like why `pass-cli item view --output json` is never called — is recorded
@@ -182,7 +194,7 @@ Some things that document will save you from guessing:
 - SSH key items store only `private_key`, `public_key` and `sections`. There is
   no algorithm, fingerprint, or comment field.
 - `item list` cannot span vaults; protui fans out per vault.
-- Timestamps have no timezone, so `time.RFC3339` will not parse them.
+- Timestamps have no timezone, so an RFC 3339 parser will not accept them.
 - Casing is inconsistent within a single object: `item_type` is snake_case,
   `state` and `flags` are PascalCase, and the CLI flag is kebab-case.
 
@@ -194,44 +206,50 @@ produced it.
 ## Development
 
 ```sh
-make check   # tidy, lint, test — mirrors CI
-make test    # tests only
-make fmt     # gofmt the Go sources
-make format  # prettier the Markdown, JSON and YAML
-make run     # build and launch
+cargo xtask check    # lint, format-check, test, audit — mirrors CI
+cargo xtask test     # tests only
+cargo xtask coverage # line coverage; HTML in target/llvm-cov/html
+cargo xtask fmt      # rustfmt the Rust, prettier the Markdown, JSON and YAML
+cargo run            # build and launch
 ```
 
-`make help` lists every target.
+`cargo xtask help` lists every task. The tasks live in [`xtask/`](xtask/), a
+small std-only crate in the workspace, following the
+[cargo xtask](https://github.com/matklad/cargo-xtask) convention: they need
+nothing but cargo, and CI and the pre-commit hook run the same ones.
 
-CI runs the same checks on push and pull request, across Linux and macOS, with
-`-race` — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Development, CI and releases all use the Rust pinned in
+[`rust-toolchain.toml`](rust-toolchain.toml), the latest stable, which Renovate
+keeps current; rustup installs it on first use. CI runs the same checks on push
+and pull request, across Linux and macOS, and again on the minimum supported
+Rust — see
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-Go code is formatted by `gofmt`; Markdown, JSON and YAML by
-[prettier](https://prettier.io). `golangci-lint` is used when installed and
-skipped with a note when not. The code follows
-[Effective Go](https://go.dev/doc/effective_go) and the
-[Google Go Style Guide](https://google.github.io/styleguide/go/); `make lint`
-covers `go vet` and, where available, `staticcheck` via golangci-lint.
+Rust code is formatted by `rustfmt` and linted by clippy, pedantic lints
+included, with warnings as errors; Markdown, JSON and YAML are formatted by
+[prettier](https://prettier.io). The code follows the
+[Rust Style Guide](https://doc.rust-lang.org/stable/style-guide/) and
+[Google's Rust style guide](https://google.github.io/styleguide/rustguide.html).
+`cargo-deny` is used when installed and skipped with a note when not.
 
 Dependency updates come from [Renovate](https://docs.renovatebot.com),
-configured in [`renovate.json`](renovate.json). The charmbracelet packages
-update together in one pull request, a bump to the minimum Go version waits for
-approval on the dependency dashboard, and nothing merges itself — every update
-is reviewed.
+configured in [`renovate.json`](renovate.json). ratatui and crossterm update
+together in one pull request, and nothing merges itself — every update is
+reviewed.
 
 Architectural changes should come with a record in
 [`docs/adr/`](docs/adr/README.md) — see its README for what earns one.
 
 Tests for the parsing layer are table-driven over fixture JSON in
-`internal/passcli/testdata/`. Those fixtures are recorded `pass-cli` output and
+`src/passcli/testdata/`. Those fixtures are recorded `pass-cli` output and
 are excluded from prettier so they stay byte-for-byte as captured.
 
 To eyeball the UI without a Proton session, render every screen with colour
 forced on:
 
 ```sh
-PROTUI_PREVIEW=1 go test ./internal/ui -run TestPreview -v
-PROTUI_PREVIEW=1 PROTUI_PREVIEW_LIGHT=1 go test ./internal/ui -run TestPreview -v
+cargo xtask preview
+PROTUI_PREVIEW_LIGHT=1 cargo xtask preview
 ```
 
 It asserts nothing and is skipped by default — it exists so layout changes can

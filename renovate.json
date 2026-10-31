@@ -1,22 +1,31 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
   "labels": ["dependencies"],
-  "postUpdateOptions": ["gomodTidy"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "description": "Cargo.lock carries the transitive dependencies, whose security fixes would otherwise arrive only when a direct dependency happens to move. A weekly refresh keeps them current."
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "rust-toolchain.toml pins the Rust every build uses. Track Rust's releases so the pin follows the latest stable; the minimum supported Rust, rust-version in Cargo.toml, is a separate decision and is not bumped.",
+      "managerFilePatterns": ["/^rust-toolchain\\.toml$/"],
+      "matchStrings": ["channel = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "rust",
+      "packageNameTemplate": "rust-lang/rust",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
   "packageRules": [
     {
-      "description": "bubbletea, bubbles, lipgloss and the charmbracelet/x helpers are cut against one another. One PR per release wave keeps the TUI stack on a combination upstream has shipped together, instead of pairing a new bubbles with an old bubbletea.",
-      "matchManagers": ["gomod"],
-      "matchPackageNames": ["github.com/charmbracelet/**"],
-      "groupName": "charmbracelet"
+      "description": "ratatui is cut against one crossterm release, and protui depends on crossterm directly only to enable its event stream. One PR per release wave keeps the two resolving to a single crossterm, instead of pairing a new ratatui with an old crossterm.",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["ratatui", "crossterm"],
+      "groupName": "ratatui"
     },
     {
-      "description": "The go directive is protui's minimum supported Go version, and the README and install instructions state it. Raising it decides who can still build the project, so it waits for approval on the dependency dashboard rather than arriving as a PR.",
-      "matchDatasources": ["golang-version"],
-      "dependencyDashboardApproval": true
-    },
-    {
-      "description": "package.json carries prettier as a caret range and no lockfile is committed, so an in-range release would never open a PR and the recorded version would drift from the one make format resolves. Bump the range to keep the two in step.",
+      "description": "package.json carries prettier as a caret range and no lockfile is committed, so an in-range release would never open a PR and the recorded version would drift from the one `cargo xtask fmt` resolves. Bump the range to keep the two in step.",
       "matchManagers": ["npm"],
       "rangeStrategy": "bump"
     }

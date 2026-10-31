@@ -1,23 +1,4 @@
 {
-  "printWidth": 80,
   "proseWrap": "preserve",
-  "semi": false,
-  "singleQuote": true,
-  "trailingComma": "all",
-  "endOfLine": "lf",
-  "overrides": [
-    {
-      "files": ["*.md"],
-      "options": {
-        "printWidth": 80,
-        "proseWrap": "preserve"
-      }
-    },
-    {
-      "files": ["*.yml", "*.yaml"],
-      "options": {
-        "singleQuote": false
-      }
-    }
-  ]
+  "endOfLine": "lf"
 }

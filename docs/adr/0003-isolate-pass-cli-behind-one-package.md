@@ -55,3 +55,15 @@ caught a real bug: `Preflight` passed its subcommand as an error label but never
 as an argument, so it ran bare `pass-cli`, exited non-zero, and reported "no
 valid session" on every launch. There is now a test asserting every wrapper's
 subcommand reaches argv.
+
+## Amended 2026-10-30
+
+protui is now Rust ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). The package is the module `src/passcli`, and
+`os/exec` is `tokio::process`; the rule is unchanged — nothing outside
+`src/passcli` runs `pass-cli`. The one other subprocess protui starts is the
+platform clipboard tool in `src/clipboard.rs`, which the Go version also ran,
+inside its clipboard library.
+
+The test seam is a fake runner compiled only into tests, rather than a function
+field, and every wrapper now passes values as `--flag=value` so that none can
+be read as a flag.

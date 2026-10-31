@@ -1,0 +1,11 @@
+[package]
+name = "xtask"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+rust-version.workspace = true
+description = "Project automation for protui, run as `cargo xtask <task>`."
+
+[lints]
+workspace = true

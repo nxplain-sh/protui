@@ -37,18 +37,19 @@ pub struct SshKeyItem {
 Three fields. That is the entire type.
 
 - **Algorithm** — not stored. Must be derived by parsing the `public_key`
-  string (the `ssh-ed25519` / `ssh-rsa` prefix, or properly via
-  `golang.org/x/crypto/ssh.ParseAuthorizedKey` → `PublicKey.Type()`).
+  string (the `ssh-ed25519` / `ssh-rsa` prefix, or properly via the
+  [`ssh-key`](https://crates.io/crates/ssh-key) crate's
+  `PublicKey::from_openssh` → `key_data()`).
 - **Fingerprint** — not stored. Must be computed locally:
-  `ssh.FingerprintSHA256(pub)` over the parsed public key.
+  `PublicKey::fingerprint(HashAlg::Sha256)` over the parsed public key.
 - **Comment** — not stored as a field. `--comment` on `create ssh-key generate`
   is baked into the _trailing comment of the OpenSSH public key line itself_
   and round-trips only there. Recover it as the third whitespace-delimited
-  field of `public_key` (`ssh.ParseAuthorizedKey` returns it as `comment`).
+  field of `public_key` (`PublicKey::comment()` returns it).
 
 **Consequence:** protui's list columns (algorithm, fingerprint) and the detail
 pane's comment are all **locally derived from `public_key`**, not read from
-JSON. `internal/keys` owns that derivation. If `public_key` is empty or
+JSON. `src/keys` owns that derivation. If `public_key` is empty or
 unparseable, those columns must degrade to a placeholder rather than error the
 whole row.
 
@@ -195,10 +196,10 @@ Three different conventions in one object, because each Rust type derives
   `SkipHealthCheck`, `EmailBreached`, `AliasDisabled`, `ItemHasFiles`,
   `ItemHasHadFiles`. Serialised as an array of names, not the bitmask.
 
-Do not normalise these by guessing. `internal/passcli` decodes them literally
-and `internal/keys` maps them to domain enums.
+Do not normalise these by guessing. `src/passcli` decodes them literally and
+maps them to the domain enums in `src/keys`.
 
-### 3.2 Timestamps are civil (zoneless) — `time.RFC3339` will not parse them
+### 3.2 Timestamps are civil (zoneless) — an RFC 3339 parser will not accept them
 
 `create_time` / `modify_time` are `jiff::civil::DateTime`, which serialises
 without offset or `Z`:
@@ -207,8 +208,9 @@ without offset or `Z`:
 2026-01-23T19:48:23
 ```
 
-Go layout is `"2006-01-02T15:04:05"`. Parsing with `time.RFC3339` fails with
-`cannot parse "" as "Z07:00"`. There is no zone information at all, so the
+The layout is `YYYY-MM-DDTHH:MM:SS`, parsed by `CivilDateTime` in `src/keys`;
+an RFC 3339 parser rejects it for the missing offset. There is no zone
+information at all, so the
 value cannot be converted to an absolute instant — treat it as wall-clock and
 render it as-is. protui uses these only for display/sort, never arithmetic.
 
@@ -325,11 +327,11 @@ subcommand. Trim the trailing newline and treat the whole line as the id.
 Both env var names in the brief are confirmed to exist verbatim.
 
 **Consequence for a TUI:** step 4 is fatal — a child process prompting on the
-shared TTY will fight Bubble Tea for the terminal and hang. protui must
+shared TTY will fight the UI for the terminal and hang. protui must
 **never pass `--password` without also setting the env var** in the child's
 environment. Setting the var and omitting the flag is sufficient and is the
 path v1 takes. The passphrase is written to the child env only, is never an
-argv element (§8), and is zeroed after the `exec` returns.
+argv element (§8), and protui's buffer is zeroed once the child has it.
 
 Note upstream writes `Reading password from environment variable ...` to
 **stderr** in that case — stderr is therefore not a reliable failure signal on
@@ -389,7 +391,12 @@ protui's own environment it must be forwarded to the child unchanged.
 - **Secrets never go in argv.** Anything in argv is world-readable via `ps`.
   Passphrases go through the child environment (§6.1). Titles, comments, ids
   and vault names are not secret and may be argv. Every argument is passed as a
-  distinct `exec.Cmd` arg — no shell, no interpolation, so no quoting concerns.
+  distinct argv element — no shell, no interpolation, so no quoting concerns —
+  and every value is joined to its flag as `--flag=value`, so one beginning
+  with `-` is never parsed as a flag. clap, which `pass-cli` uses, accepts that
+  form for every long option (verified against 2.5.1:
+  `--share-id=--bogus` is rejected by the server as a malformed id, not by the
+  parser as an unknown flag).
 - **`PROTON_PASS_NO_UPDATE_CHECK`** should be set on every child invocation to
   suppress the auto-update probe, which otherwise adds latency and can write
   unexpected lines.
@@ -400,8 +407,8 @@ protui's own environment it must be forwarded to the child unchanged.
 
 Two independent checks, in order:
 
-1. **Binary present** — `exec.LookPath("pass-cli")`. If absent, tell the user
-   to install it; do not start the TUI.
+1. **Binary present** — a search of the absolute `PATH` entries for
+   `pass-cli`. If absent, tell the user to install it; do not start the TUI.
 2. **Session valid** — run `pass-cli info`. Exit 0 with output means a live
    session. Verified shape (human, no JSON flag on this command):
 
@@ -425,10 +432,10 @@ upstream's own stderr text.
 
 ## 10. Unknown fields
 
-Every decoder tolerates unknown JSON keys — Go's `encoding/json` ignores them
-by default and protui does **not** call `DisallowUnknownFields`. A new upstream
-field must never break the list. Conversely, a _removed_ or _renamed_ field
-decodes to the zero value silently, which is the real risk: `internal/passcli`
+Every decoder tolerates unknown JSON keys — serde ignores them by default and
+protui does **not** set `deny_unknown_fields`. A new upstream field must never
+break the list. Conversely, a _removed_ or _renamed_ field decodes to its
+default silently, which is the real risk: `src/passcli`
 validates that required fields (`id`, `share_id`, `title`) are non-empty after
 decode and returns a named error identifying the command that produced the
 unexpected shape.

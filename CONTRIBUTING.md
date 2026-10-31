@@ -8,47 +8,55 @@ scope below.
 
 You need:
 
-- **Go 1.27 or newer** — the version is read from `go.mod`, so bump it there.
+- **[rustup](https://rustup.rs)** — `rust-toolchain.toml` pins the Rust every
+  build uses, currently the latest stable, 1.99.1, and rustup installs it, with
+  clippy and rustfmt, the first time you run cargo here. The oldest Rust protui
+  still builds with is `rust-version` in `Cargo.toml` (1.88); CI tests that
+  too.
 - **`pass-cli`**, installed and authenticated. protui refuses to start without
   it. See the [README](README.md#requires-pass-cli).
 - **Node** — only for `prettier`, fetched on demand via `npx`.
-- **`golangci-lint`** — optional. The lint target skips it with a note when it
-  is absent, but CI runs it, so installing it saves a round trip.
+- **`cargo-deny`** — optional. The audit task skips it with a note when it
+  is absent, but CI runs it, so installing it saves a round trip:
+  `cargo install --locked cargo-deny`.
+- **`cargo-llvm-cov`** — optional, for `cargo xtask coverage`:
+  `cargo install --locked cargo-llvm-cov`.
 
 ```sh
 git clone https://github.com/nxplain-sh/protui
 cd protui
-make check   # tidy, lint, test — the same checks CI runs
-make hooks   # optional: run those checks on every commit
+cargo xtask check   # lint, format-check, test, audit — the same checks CI runs
+cargo xtask hooks   # optional: run those checks on every commit
 ```
 
-`make help` lists every target.
+`cargo xtask help` lists every task. They are plain Rust in
+[`xtask/`](xtask/), so adding one needs no tool beyond cargo.
 
 ### The pre-commit hook
 
-`make hooks` points git's `core.hooksPath` at
-[`.githooks/pre-commit`](.githooks/pre-commit), which runs `gofmt`, `prettier`,
-`go vet`, `golangci-lint` and `go test` before each commit. The hook shells out
-to Makefile targets, so the hook and `make check` cannot drift apart. Git reads
-that setting from repository config, so it is one command per clone:
+`cargo xtask hooks` points git's `core.hooksPath` at
+[`.githooks/pre-commit`](.githooks/pre-commit), which runs
+`cargo xtask pre-commit`: `rustfmt`, `prettier`, clippy, the tests and
+`cargo-deny`, through the same tasks as `cargo xtask check` and CI, so none of
+them can drift apart. Git reads that setting from repository config, so it is
+one command per clone:
 
 ```sh
 git config core.hooksPath .githooks
 ```
 
 The hook is scoped by what the commit touches — a Markdown-only commit does not
-run the Go checks — and `git commit --no-verify` skips it when you need it.
+run the Rust checks — and `git commit --no-verify` skips it when you need it.
 
 ## Before you open a pull request
 
 ```sh
-make fmt     # gofmt the Go sources
-make format  # prettier the Markdown, JSON and YAML
-make check   # tidy, lint, test
+cargo xtask fmt     # rustfmt the Rust, prettier the Markdown, JSON and YAML
+cargo xtask check   # lint, format-check, test, audit
 ```
 
-CI runs the equivalent on Linux and macOS, with `-race`, plus `gosec` and
-`govulncheck`.
+CI runs the equivalent on Linux and macOS, again on the minimum supported Rust,
+and checks the dependency tree with `cargo-deny`.
 
 ## The parts that are not negotiable
 
@@ -62,11 +70,16 @@ has tests that will fail if you do.
   names the private key; adding one is a design change, not a patch.
 - **No secret is ever a command-line argument.** Arguments are readable by any
   local user via `ps`. The only secret protui handles — a passphrase on create —
-  goes through the child environment.
+  goes through the child environment, and lives in a single buffer that is
+  zeroed once the child has it.
+- **No value is ever its own argument.** Values are attached to their flag as
+  `--flag=value`, so one beginning with `-` cannot be read as a flag.
 - **`--show-secrets` is never passed.**
-- **Only `internal/passcli` may execute a subprocess.** Nothing else imports
-  `os/exec`. If you need something new from `pass-cli`, add a typed wrapper
-  there rather than an exec call at the call site.
+- **Only `src/passcli` may run `pass-cli`.** If you need something new from it,
+  add a typed wrapper there rather than a `Command` at the call site. The one
+  other subprocess protui starts is the platform clipboard tool, in
+  `src/clipboard.rs`, which receives the public key on stdin.
+- **No `unsafe` code.** The crate forbids it in `Cargo.toml`.
 - **Text from Proton Pass is sanitised before it is displayed.** Titles, vault
   names and comments can come from a shared vault, so they are untrusted. This
   happens at the parse boundary and cannot be moved to render time — see
@@ -83,7 +96,7 @@ re-verify and update that document. It has a section of commands to re-run and
 names the fields most likely to drift. Please do not paste real vault data into
 it — redact as the existing examples do.
 
-Parser tests are table-driven over fixtures in `internal/passcli/testdata/`.
+Parser tests are table-driven over fixtures in `src/passcli/testdata/`.
 Those fixtures are recorded output and are excluded from prettier so they stay
 byte-for-byte as captured. Where a fixture needs control characters, write them
 as JSON `\u001b`-style escapes rather than as raw bytes — which
@@ -92,18 +105,17 @@ repository.
 
 ## If you touch the UI
 
-The Bubble Tea update loop does no I/O — every `pass-cli` call is dispatched as
-a `tea.Cmd` and comes back as a message. Keep it that way; a blocking call
-freezes the interface, including the ability to quit.
-
-Model methods take value receivers and return the updated model, matching how
-Bubble Tea threads state.
+The update loop does no I/O — `Model::update` returns `Command` values, the
+runtime runs each one on its own task, and the result comes back as a `Message`.
+Keep it that way; a blocking call freezes the interface, including the ability
+to quit. Because commands are plain data, a test can assert exactly which
+effect a key press asked for without anything running.
 
 To see your change without a Proton session:
 
 ```sh
-PROTUI_PREVIEW=1 go test ./internal/ui -run TestPreview -v
-PROTUI_PREVIEW_LIGHT=1 PROTUI_PREVIEW=1 go test ./internal/ui -run TestPreview -v
+cargo xtask preview
+PROTUI_PREVIEW_LIGHT=1 cargo xtask preview
 ```
 
 It renders every screen with colour forced on. Check both themes — the palette
@@ -121,14 +133,22 @@ above, or a reversal of an existing record.
 
 ## Style
 
-Go code follows [Effective Go](https://go.dev/doc/effective_go) and the
-[Google Go Style Guide](https://google.github.io/styleguide/go/). A few things
+Rust code follows the
+[Rust Style Guide](https://doc.rust-lang.org/stable/style-guide/), as `rustfmt`
+applies it, and [Google's Rust style guide](https://google.github.io/styleguide/rustguide.html).
+clippy runs with its pedantic lints, plus a few restriction lints that encode
+the guides (no `panic!`, no string `+`, no `mod.rs`, a reason on every silenced
+lint), and every warning is an error. A few things
 that come up in review:
 
-- Receivers are consistent per type — all value or all pointer, never mixed.
+- One `use` per module, no glob imports outside test modules, and free
+  functions called through their module (`time::sleep`, not a bare `sleep`).
 - Comments explain _why_, not _what_. The code already says what.
-- Prefer the standard library and builtins over hand-rolled helpers.
-- Errors are lowercase, wrapped with `%w`, and name the command that failed.
+- Prefer the standard library over a new dependency for a few lines.
+- `expect` with a reason over `unwrap`; a lint that is silenced says why, with
+  `#[expect(…, reason = "…")]`.
+- Errors are lowercase, name the command that failed, and carry their cause as
+  `source()`.
 
 ## Tests
 

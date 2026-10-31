@@ -51,12 +51,15 @@ that is in scope here — please report it.
 
 protui's guarantees, and where they are enforced:
 
-| Guarantee                                         | Enforced in                 |
-| ------------------------------------------------- | --------------------------- |
-| No private key material ever enters the process   | `internal/passcli/item.go`  |
-| No secret is ever a command-line argument         | `internal/passcli/item.go`  |
-| Only one package may execute a subprocess         | `internal/passcli`          |
-| Text from Proton Pass is sanitised before display | `internal/keys/sanitize.go` |
+| Guarantee                                         | Enforced in             |
+| ------------------------------------------------- | ----------------------- |
+| No private key material ever enters the process   | `src/passcli/item.rs`   |
+| No secret is ever a command-line argument         | `src/passcli/item.rs`   |
+| No value can be read as a flag                    | `src/passcli/item.rs`   |
+| No passphrase is inherited from the shell         | `src/passcli/client.rs` |
+| Only one module may run `pass-cli`                | `src/passcli`           |
+| Text from Proton Pass is sanitised before display | `src/keys/sanitize.rs`  |
+| No `unsafe` code                                  | `Cargo.toml` (`forbid`) |
 
 The reasoning behind each, including what was rejected, is in
 [`docs/adr/`](docs/adr/README.md) — particularly
@@ -69,8 +72,9 @@ Every guarantee has tests asserting it, including that no constructed argument
 list contains the word `private`, and that hostile item titles cannot emit
 terminal escape sequences.
 
-`gosec` runs in the lint step and `govulncheck` runs in CI on every push and
-pull request.
+`cargo-deny` checks the dependency tree against the RustSec advisory database
+in CI on every push and pull request, and clippy runs with every warning treated
+as an error.
 
 ## Known limitations
 
@@ -78,10 +82,12 @@ These are accepted trade-offs rather than oversights, and are documented so you
 can judge them yourself:
 
 - **A passphrase cannot be fully wiped from memory.** It is passed to `pass-cli`
-  through the child environment, never argv. The `[]byte` holding it is zeroed
-  once the environment entry is built, but that entry is a Go string, which is
-  immutable and cannot be explicitly cleared; it lives until garbage collected.
-  It is never written to argv, disk, or logs.
+  through the child environment, never argv. protui keeps it in one buffer,
+  allocated at full size before the first keystroke so that typing never leaves
+  a stale copy behind, and zeroes that buffer once the child has started. The
+  standard library builds its own copy of the child's environment while
+  spawning, which protui cannot reach to wipe; it is freed, unzeroed, as soon as
+  the child has started. It is never written to argv, disk, or logs.
 - **A child process environment is not private from root or from the same
   user.** On Linux it is readable at `/proc/<pid>/environ`. The environment is
   the strongest mechanism `pass-cli` offers for this, and it is the one upstream
@@ -90,6 +96,8 @@ can judge them yourself:
   binary beyond resolving it on `PATH`, so a `PATH` an attacker controls is a
   `pass-cli` an attacker controls.
 - **The clipboard is not protui's to protect.** A copied public key is not
-  secret, but it stays on the clipboard until something replaces it.
+  secret, but it stays on the clipboard until something replaces it. Copying
+  runs the platform's clipboard tool (`pbcopy`, `wl-copy`, `xclip` or `xsel`),
+  resolved on `PATH` like `pass-cli` is.
 - **Supported versions:** protui is pre-release and unversioned. Fixes land on
   `main`; there are no backports.

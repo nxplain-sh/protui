@@ -14,11 +14,15 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   test:
     name: Test
-    # protui targets macOS and Linux, and the one platform-sensitive dependency
-    # is the clipboard, so both are exercised.
+    # protui targets macOS and Linux, and the platform-sensitive pieces — the
+    # clipboard tools and the terminal — differ between them, so both are
+    # exercised.
     strategy:
       fail-fast: false
       matrix:
@@ -29,22 +33,40 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-go@v7
+      # Installs the toolchain pinned in rust-toolchain.toml, with its
+      # components, and caches the build. RUSTFLAGS is left alone so CI
+      # compiles exactly as a local build does; clippy denies warnings itself.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          # Read from go.mod so a version bump only has to happen in one place.
-          go-version-file: go.mod
-          cache: true
+          rustflags: ""
 
-      - name: Build
-        run: go build ./...
-
-      - name: Vet
-        run: go vet ./...
-
-      # -race because the model is threaded through goroutine-backed commands,
-      # which is where a data race would hide.
+      # Every check runs through `cargo xtask`, as the pre-commit hook and a
+      # local run do, so the three cannot drift apart.
       - name: Test
-        run: go test -race ./...
+        run: cargo xtask test
+
+  msrv:
+    name: Minimum Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Read from Cargo.toml so a bump only has to happen in one place.
+      - name: Read rust-version
+        id: msrv
+        run: echo "version=$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' Cargo.toml)" >> "$GITHUB_OUTPUT"
+
+      # An explicit toolchain is set as a directory override, which outranks
+      # rust-toolchain.toml, so this job really builds with the minimum.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+          rustflags: ""
+
+      - name: Test
+        run: cargo xtask test
 
   lint:
     name: Lint
@@ -54,30 +76,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-go@v7
+      # Installs the toolchain pinned in rust-toolchain.toml, with its
+      # components, and caches the build. RUSTFLAGS is left alone so CI
+      # compiles exactly as a local build does; clippy denies warnings itself.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          go-version-file: go.mod
-          cache: true
+          rustflags: ""
 
-      - name: Check formatting
-        run: |
-          unformatted="$(gofmt -l .)"
-          if [ -n "$unformatted" ]; then
-            echo "These files need gofmt:"
-            echo "$unformatted"
-            exit 1
-          fi
-
-      # A missing tidy shows up as an unrelated failure later, so it is caught
-      # here as a diff rather than left to surprise someone.
-      - name: Check go.mod is tidy
-        run: |
-          go mod tidy
-          git diff --exit-code go.mod go.sum
-
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          version: latest
+      - name: rustfmt and clippy
+        run: cargo xtask lint
 
   format:
     name: Prettier
@@ -89,23 +96,32 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: lts/*
+      # The same command as `cargo xtask format-check`; this job installs
+      # only Node, not Rust.
       - name: Check formatting
-        run: make format-check
+        run: npx --yes prettier --check .
 
-  vulncheck:
-    name: Vulnerabilities
+  dependencies:
+    name: Dependencies
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-go@v7
+      # cargo-deny reads the dependency graph through cargo.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          go-version-file: go.mod
-          cache: true
+          rustflags: ""
 
-      # Reports known vulnerabilities in the dependency graph, and whether any
-      # reachable code actually calls them.
-      - name: govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      # A prebuilt, checksum-verified binary rather than a container action,
+      # so the job runs the same on any runner architecture.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      # Known vulnerabilities and unmaintained crates from the RustSec
+      # database, plus the licence and source policy in deny.toml.
+      # CI is set, so a missing cargo-deny fails the job rather than skipping.
+      - name: cargo deny
+        run: cargo xtask audit

@@ -92,3 +92,11 @@ and the argument above no longer holds.
 The bindings are covered by tests rather than left to review, including the
 cases that are easy to regress: that a lone `g` does nothing, that an unrelated
 key cancels the prefix, and that the bare-letter paging keys stay unbound.
+
+## Amended 2026-10-30
+
+protui is now Rust on ratatui ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). ratatui has no list widget with
+default key bindings, so there are no bare-letter paging bindings to unbind:
+the list moves only on the keys in `src/ui/keymap.rs`. The `gg` prefix state
+and the half-page arithmetic carry over unchanged, and `Ctrl-c` now quits from
+every screen, not only the list.
