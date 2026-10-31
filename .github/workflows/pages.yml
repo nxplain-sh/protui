@@ -36,6 +36,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
         with:
           rustflags: ""
+          build-warnings: warn
 
       # An empty list is not an error: the page builds without a version. A
       # failing lookup is, so a broken token cannot quietly hide the version.

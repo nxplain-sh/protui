@@ -39,6 +39,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           rustflags: ""
+          build-warnings: warn
 
       - name: Install musl tools
         if: contains(matrix.target, 'musl')
