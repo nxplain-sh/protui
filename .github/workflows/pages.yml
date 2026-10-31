@@ -33,9 +33,10 @@ jobs:
           persist-credentials: false
 
       # The toolchain pinned in rust-toolchain.toml, for `cargo xtask site`.
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
         with:
           rustflags: ""
+          build-warnings: warn
 
       # An empty list is not an error: the page builds without a version. A
       # failing lookup is, so a broken token cannot quietly hide the version.
