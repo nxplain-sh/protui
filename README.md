@@ -60,6 +60,14 @@ The binaries are not signed. On macOS, one downloaded with a browser is
 quarantined and Gatekeeper refuses to run it; clear that with
 `xattr -d com.apple.quarantine ~/.local/bin/protui`.
 
+### Homebrew
+
+On macOS or Linux, the same prebuilt binary:
+
+```sh
+brew install nxplain-sh/tap/protui
+```
+
 ### For Rust developers
 
 Building from source needs Rust 1.88 or newer:
