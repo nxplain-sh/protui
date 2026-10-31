@@ -27,6 +27,8 @@ Tasks:
   install       install into ~/.cargo/bin, stamped with git describe
   site <dir> [--tag <tag> --date <yyyy-mm-dd>]
                 the website from site/, with the release written in if given
+  formula <tag> <checksums.txt>
+                the Homebrew formula for a release, on stdout
   pre-commit    the checks a staged change calls for; run by .githooks/pre-commit
   hooks         point git at .githooks so pre-commit runs on every commit";
 
@@ -51,6 +53,7 @@ fn main() -> ExitCode {
         Some("build") => build(),
         Some("install") => install(),
         Some("site") => site(&env::args().skip(2).collect::<Vec<_>>()),
+        Some("formula") => formula(&env::args().skip(2).collect::<Vec<_>>()),
         Some("pre-commit") => pre_commit(),
         Some("hooks") => run("git", &["config", "core.hooksPath", ".githooks"]),
         None | Some("help" | "-h" | "--help") => {
@@ -150,6 +153,102 @@ fn build() -> Result<(), Failure> {
 
 fn install() -> Result<(), Failure> {
     cargo_with_version(&["install", "--path", ".", "--locked"])
+}
+
+/// The targets `release.yaml` builds, and the Homebrew blocks each one is
+/// installed under.
+const FORMULA_TARGETS: [(&str, &str, &str); 4] = [
+    ("aarch64-apple-darwin", "macos", "arm"),
+    ("x86_64-apple-darwin", "macos", "intel"),
+    ("aarch64-unknown-linux-musl", "linux", "arm"),
+    ("x86_64-unknown-linux-musl", "linux", "intel"),
+];
+
+/// Prints the Homebrew formula for a release, from its tag and the
+/// `checksums.txt` published beside its archives.
+fn formula(args: &[String]) -> Result<(), Failure> {
+    let [tag, checksums] = args else {
+        return Err(Failure(
+            "usage: cargo xtask formula <tag> <checksums.txt>".to_owned(),
+        ));
+    };
+    let checksums = fs::read_to_string(checksums)
+        .map_err(|error| Failure(format!("could not read {checksums}: {error}")))?;
+
+    print!("{}", render_formula(tag, &checksums)?);
+    Ok(())
+}
+
+/// Writes the formula: one prebuilt archive per platform, each with its
+/// SHA-256. A formula rather than a cask, so it installs on Linux too, and
+/// so the unsigned binary is not quarantined on macOS.
+fn render_formula(tag: &str, checksums: &str) -> Result<String, Failure> {
+    // The version lands inside Ruby strings, so it is held to what a
+    // version can contain.
+    let version = tag
+        .strip_prefix('v')
+        .filter(|version| {
+            !version.is_empty()
+                && version
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+'))
+        })
+        .ok_or_else(|| Failure(format!("{tag:?} is not a release tag like v1.2.3")))?;
+
+    let mut platforms = Vec::new();
+    for os in ["macos", "linux"] {
+        platforms.push(format!("  on_{os} do"));
+        for &(target, _, arch) in FORMULA_TARGETS.iter().filter(|(_, o, _)| *o == os) {
+            let archive = format!("protui_{version}_{target}.tar.gz");
+            let sha256 = archive_checksum(checksums, &archive)?;
+            platforms.push(format!(
+                "    on_{arch} do\n      url \"https://github.com/nxplain-sh/protui/releases/download/{tag}/{archive}\"\n      sha256 \"{sha256}\"\n    end"
+            ));
+        }
+        platforms.push("  end\n".to_owned());
+    }
+    let platforms = platforms.join("\n");
+
+    Ok(format!(
+        r##"# Written by `cargo xtask formula` in nxplain-sh/protui for each release.
+# Edits here are overwritten by the next one.
+class Protui < Formula
+  desc "Unofficial terminal UI for Proton Pass SSH keys"
+  homepage "https://nxplain-sh.github.io/protui/"
+  license "MIT"
+
+{platforms}
+  def install
+    bin.install "protui"
+  end
+
+  def caveats
+    <<~EOS
+      protui drives the official Proton Pass CLI, which must be installed
+      and logged in:
+        brew install protonpass/tap/pass-cli
+        pass-cli login
+    EOS
+  end
+
+  test do
+    assert_match "protui #{{version}}", shell_output("#{{bin}}/protui --version")
+  end
+end
+"##
+    ))
+}
+
+/// Finds `archive`'s SHA-256 in `sha256sum` output.
+fn archive_checksum<'a>(checksums: &'a str, archive: &str) -> Result<&'a str, Failure> {
+    checksums
+        .lines()
+        .find_map(|line| {
+            let (sum, name) = line.split_once(char::is_whitespace)?;
+            (name.trim_start_matches([' ', '*']) == archive).then_some(sum)
+        })
+        .filter(|sum| sum.len() == 64 && sum.chars().all(|c| c.is_ascii_hexdigit()))
+        .ok_or_else(|| Failure(format!("checksums.txt has no SHA-256 for {archive}")))
 }
 
 /// Text the page held before release injection existed. Neither may ever be
@@ -558,6 +657,49 @@ mod tests {
         assert!(Touched::of(["xtask/Cargo.toml"]).dependencies);
         let policy = Touched::of(["deny.toml"]);
         assert!(policy.dependencies && !policy.rust, "{policy:?}");
+    }
+
+    fn checksums(version: &str) -> String {
+        FORMULA_TARGETS
+            .iter()
+            .enumerate()
+            .map(|(index, (target, ..))| {
+                format!(
+                    "{}  protui_{version}_{target}.tar.gz\n",
+                    index.to_string().repeat(64)
+                )
+            })
+            .chain([format!("{}  something-else.tar.gz\n", "f".repeat(64))])
+            .collect()
+    }
+
+    #[test]
+    fn the_formula_names_every_archive_with_its_checksum() {
+        let formula = render_formula("v1.2.3", &checksums("1.2.3")).expect("a formula");
+
+        for (index, (target, _, arch)) in FORMULA_TARGETS.iter().enumerate() {
+            let url = format!(
+                "url \"https://github.com/nxplain-sh/protui/releases/download/v1.2.3/protui_1.2.3_{target}.tar.gz\"\n      sha256 \"{}\"",
+                index.to_string().repeat(64)
+            );
+            assert!(formula.contains(&url), "{target} is missing:\n{formula}");
+            assert!(formula.contains(&format!("on_{arch} do")));
+        }
+        assert!(formula.contains("on_macos do") && formula.contains("on_linux do"));
+        assert!(formula.contains(r##"shell_output("#{bin}/protui --version")"##));
+    }
+
+    #[test]
+    fn the_formula_refuses_a_missing_checksum_or_an_odd_tag() {
+        let partial: String = checksums("1.2.3").split_inclusive('\n').skip(1).collect();
+        assert!(render_formula("v1.2.3", &partial).is_err());
+        assert!(render_formula("v1.2.3", &checksums("1.2.4")).is_err());
+        for tag in ["1.2.3", "v", "v1.2.3\"; system(\"x\")"] {
+            assert!(
+                render_formula(tag, &checksums("1.2.3")).is_err(),
+                "{tag:?} was accepted"
+            );
+        }
     }
 
     fn release() -> Release {

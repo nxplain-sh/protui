@@ -7,6 +7,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- Homebrew: `brew install nxplain-sh/tap/protui` installs the prebuilt binary
+  on macOS and Linux. Each release updates the formula in
+  [nxplain-sh/homebrew-tap](https://github.com/nxplain-sh/homebrew-tap).
+
 ## [0.1.0] - 2026-10-31
 
 ### Added
