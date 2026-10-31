@@ -7,8 +7,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing has been released yet. Everything below is the initial feature set,
-pending a first tagged version.
+## [0.1.0] - 2026-10-31
 
 ### Added
 
@@ -105,4 +104,5 @@ pending a first tagged version.
 - [`docs/adr/`](docs/adr/README.md) records the architecture decisions, with the
   alternatives considered and what each choice cost.
 
-[unreleased]: https://github.com/nxplain-sh/protui/commits/main
+[unreleased]: https://github.com/nxplain-sh/protui/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/nxplain-sh/protui/releases/tag/v0.1.0
