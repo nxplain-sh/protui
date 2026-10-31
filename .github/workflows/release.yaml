@@ -90,3 +90,19 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --generate-notes
+
+  site:
+    name: Redeploy the site
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      # Runs the Pages workflow on main, where the site's source lives, and it
+      # writes in the release that now exists. Deploying from the tag instead
+      # would publish the site as it was at the tag, and the github-pages
+      # environment accepts deployments from main only by default.
+      - name: Run the Pages workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main

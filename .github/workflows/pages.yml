@@ -1,0 +1,72 @@
+name: Pages
+
+# Publishes site/ to GitHub Pages as it is: one static page, no generator.
+# The latest release's tag and date are written into the page as it is built,
+# so the release workflow redeploys it after each release. With no release
+# yet, the page's version chips stay hidden.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/pages.yml"]
+  # Also how release.yaml redeploys, on main, once a release exists.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time. A newer one waits rather than cancelling one that
+# is already publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The toolchain pinned in rust-toolchain.toml, for `cargo xtask site`.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      # An empty list is not an error: the page builds without a version. A
+      # failing lookup is, so a broken token cannot quietly hide the version.
+      - name: Build the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release=$(gh release list --repo "$GITHUB_REPOSITORY" \
+            --json tagName,publishedAt,isLatest \
+            --jq '.[] | select(.isLatest) | "\(.tagName) \(.publishedAt[0:10])"')
+          if [ -n "$release" ]; then
+            read -r tag date <<< "$release"
+            cargo xtask site _site --tag "$tag" --date "$date"
+          else
+            cargo xtask site _site
+          fi
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

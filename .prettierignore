@@ -5,3 +5,6 @@ node_modules/
 # Fixtures are captured pass-cli output and must stay byte-for-byte as
 # recorded; reformatting them would defeat their purpose.
 src/passcli/testdata/
+
+# The site is hand-written HTML, published as it is written.
+site/
