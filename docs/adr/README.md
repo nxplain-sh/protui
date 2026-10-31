@@ -14,21 +14,23 @@ Numbered roughly from the foundational to the specific rather than
 chronologically — 0001 through 0013 were all decided on the same day, during
 initial design. Records added later take the next free number.
 
-| Decision                                                                                                 | In short                                                                 |
-| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [Wrap pass-cli instead of the Proton API](0001-wrap-pass-cli-instead-of-the-proton-api.md)               | Drive the official binary; implement no crypto of our own.               |
-| [Record the upstream schema before implementing](0002-record-the-upstream-schema-before-implementing.md) | `pass-cli` JSON is not a contract, so write down what we verified.       |
-| [Isolate pass-cli behind one package](0003-isolate-pass-cli-behind-one-package.md)                       | One package execs; the security rules live where they can be tested.     |
-| [Read public keys with a field-scoped view](0004-read-public-keys-with-a-field-scoped-view.md)           | The obvious call returns private keys, so never make it.                 |
-| [Pass passphrases through the environment](0005-pass-passphrases-through-the-environment.md)             | argv is world-readable, and `--password` would prompt on the TTY.        |
-| [Derive key metadata from public keys](0006-derive-key-metadata-from-public-keys.md)                     | Upstream stores no algorithm, fingerprint, or comment field.             |
-| [Fan out item listing per vault](0007-fan-out-item-listing-per-vault.md)                                 | `item list` cannot span vaults; one failure must not blank the list.     |
-| [Separate trashing from permanent deletion](0008-separate-trashing-from-permanent-deletion.md)           | `d` is recoverable, `D` is not, and the prompts differ accordingly.      |
-| [Keep I/O out of the update loop](0009-keep-io-out-of-the-update-loop.md)                                | Every `pass-cli` call is a `tea.Cmd`, so the UI never freezes.           |
-| [Navigate like vim, act with mnemonics](0010-navigate-like-vim-act-with-mnemonics.md)                    | Real `gg` and `Ctrl-f/b/d/u`; actions stay lazygit-style single letters. |
-| [Sanitize text before drawing it](0011-sanitize-text-before-drawing-it.md)                               | Shared vault titles are untrusted; escapes reach the terminal otherwise. |
-| [Tolerate unknown JSON fields but validate required ones](0012-tolerate-unknown-json-fields.md)          | Additive upstream changes are harmless; subtractive ones must be loud.   |
-| [Fail before taking over the terminal](0013-fail-before-taking-over-the-terminal.md)                     | A missing session is reported in a terminal that still works.            |
+| Decision                                                                                                 | In short                                                                    |
+| -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [Wrap pass-cli instead of the Proton API](0001-wrap-pass-cli-instead-of-the-proton-api.md)               | Drive the official binary; implement no crypto of our own.                  |
+| [Record the upstream schema before implementing](0002-record-the-upstream-schema-before-implementing.md) | `pass-cli` JSON is not a contract, so write down what we verified.          |
+| [Isolate pass-cli behind one package](0003-isolate-pass-cli-behind-one-package.md)                       | One package execs; the security rules live where they can be tested.        |
+| [Read public keys with a field-scoped view](0004-read-public-keys-with-a-field-scoped-view.md)           | The obvious call returns private keys, so never make it.                    |
+| [Pass passphrases through the environment](0005-pass-passphrases-through-the-environment.md)             | argv is world-readable, and `--password` would prompt on the TTY.           |
+| [Derive key metadata from public keys](0006-derive-key-metadata-from-public-keys.md)                     | Upstream stores no algorithm, fingerprint, or comment field.                |
+| [Fan out item listing per vault](0007-fan-out-item-listing-per-vault.md)                                 | `item list` cannot span vaults; one failure must not blank the list.        |
+| [Separate trashing from permanent deletion](0008-separate-trashing-from-permanent-deletion.md)           | `d` is recoverable, `D` is not, and the prompts differ accordingly.         |
+| [Keep I/O out of the update loop](0009-keep-io-out-of-the-update-loop.md)                                | Every `pass-cli` call runs off the loop, so the UI never freezes.           |
+| [Navigate like vim, act with mnemonics](0010-navigate-like-vim-act-with-mnemonics.md)                    | Real `gg` and `Ctrl-f/b/d/u`; actions stay lazygit-style single letters.    |
+| [Sanitize text before drawing it](0011-sanitize-text-before-drawing-it.md)                               | Shared vault titles are untrusted; escapes reach the terminal otherwise.    |
+| [Tolerate unknown JSON fields but validate required ones](0012-tolerate-unknown-json-fields.md)          | Additive upstream changes are harmless; subtractive ones must be loud.      |
+| [Fail before taking over the terminal](0013-fail-before-taking-over-the-terminal.md)                     | A missing session is reported in a terminal that still works.               |
+| [Rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)                                     | Ownership scopes the passphrase; types keep the delete on the right item.   |
+| [Restyle the TUI as neobrutalist](0015-restyle-the-tui-as-neobrutalist.md)                               | Algorithm chips, a filled selection, and red kept for the permanent delete. |
 
 ## Writing one
 

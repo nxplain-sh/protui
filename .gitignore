@@ -1,13 +1,5 @@
-# Build artefacts. The binary pattern is anchored to the repository root:
-# unanchored, `protui` would also match the cmd/protui source directory.
-/bin/
-/dist/
-/protui
-
-# Test and coverage output
-coverage.out
-coverage.html
-*.test
+# Build artefacts
+/target/
 
 # Node, present only for prettier
 node_modules/

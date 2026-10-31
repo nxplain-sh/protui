@@ -53,3 +53,18 @@ locked session presents as a command failure rather than a special startup path.
 Not parsing `info` means protui cannot show the logged-in account in its
 header. That would require depending on prose formatting, which is exactly what
 this decision avoids; the trade is accepted.
+
+## Amended 2026-10-30
+
+protui is now Rust on ratatui ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). The checks run in `main` before
+`ratatui::try_init`, and the binary is found by a `PATH` search that skips
+relative entries, so a binary in the working directory cannot stand in for
+`pass-cli`.
+
+## Amended 2026-10-31
+
+The vault list now starts alongside `pass-cli info` instead of after it. It
+needs a session but not the check's verdict, and running the two together
+finishes the pair in about a third of the time against a live account. The
+decision is unchanged: the check must pass before the terminal is taken over,
+and if it fails the vault list is dropped unread.

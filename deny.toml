@@ -1,0 +1,32 @@
+# cargo-deny policy: run with `cargo deny check`, or `make audit`. CI runs it on
+# every push and pull request.
+
+[graph]
+# protui ships for macOS and Linux only, so dependencies that exist solely for
+# other platforms are not part of what is released.
+targets = [
+    "aarch64-apple-darwin",
+    "aarch64-unknown-linux-musl",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-musl",
+]
+
+[advisories]
+# Every RustSec advisory fails the check, including unmaintained crates; an
+# exception has to be written down here with its reason.
+yanked = "deny"
+
+[licenses]
+# Permissive licences compatible with protui's MIT licence.
+allow = ["Apache-2.0", "BSD-3-Clause", "MIT", "Unicode-3.0", "Zlib"]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+# Everything comes from crates.io; a git or third-party registry dependency
+# would bypass the advisory database.
+unknown-git = "deny"
+unknown-registry = "deny"

@@ -58,3 +58,15 @@ TTY, which is how the render tests work.
 Model methods take value receivers and return the updated model, matching how
 Bubble Tea threads state through `Update` — and avoiding the mixed
 pointer-and-value receivers the Go style guide warns against.
+
+## Amended 2026-10-30
+
+protui is now Rust on ratatui ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). The decision holds; its mechanism
+changed. `Model::update` returns `Command` values — plain data rather than
+closures — and the runtime runs each on its own tokio task and posts the result
+back as a `Message` over a channel. Because commands are data, tests now assert
+which effect was asked for, not merely that one was.
+
+The concurrency window for public key fetches is unchanged. The remark about
+receivers no longer applies: `update` takes `&mut self` and returns the
+commands it wants run.

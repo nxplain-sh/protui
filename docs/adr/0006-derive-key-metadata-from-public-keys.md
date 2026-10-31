@@ -67,3 +67,10 @@ row does. The detail pane shows `loading…` rather than an empty field.
 RSA is the only algorithm whose size varies in practice, so it is the only one
 rendered with its bit count (`rsa4096`); `ed25519` is fixed at 256 bits and
 showing it would be noise.
+
+## Amended 2026-10-30
+
+protui is now Rust ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). Public keys are parsed with the RustCrypto
+[`ssh-key`](https://crates.io/crates/ssh-key) crate instead of
+`golang.org/x/crypto/ssh`, and `src/keys` owns the derivation. The fingerprints
+are pinned against `ssh-keygen -lf` by the same test vectors as before.

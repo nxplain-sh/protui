@@ -77,3 +77,14 @@ than asserting a property of an already-constructed value that nothing enforces.
 
 `gosec` now runs in the lint step and `govulncheck` in CI, so the class of
 problem this record describes is not the only one being watched for.
+
+## Amended 2026-10-30
+
+protui is now Rust on ratatui ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). ratatui keeps styling separate
+from text rather than embedding SGR escapes in strings, so the render-time
+objection above no longer holds as stated. The decision stands anyway, for the
+other reasons given: sanitising at the boundary means nothing downstream has to
+remember, and the title the delete prompt asks for is the one on screen. The
+module is `src/keys/sanitize.rs`, a hand-written scanner equivalent to the
+earlier regular expression, and `cargo-deny` replaces `gosec` and `govulncheck`
+in CI.

@@ -1,33 +1,108 @@
 name: Release
 
-# Tags only. CI has already run on main by the time a release tag exists, and
-# GoReleaser publishes straight from the tag, so there is nothing to gate here.
+# Tags only. CI has already run on main by the time a release tag exists, so
+# there is nothing to gate here.
 on:
   push:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  release:
-    name: GoReleaser
-    runs-on: ubuntu-latest
+  build:
+    name: Build ${{ matrix.target }}
+    # protui supports macOS and Linux only; each on both architectures. Linux
+    # builds link musl statically, so one binary runs on any distribution.
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
         with:
-          # GoReleaser reads the history to build the changelog.
-          fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-go@v7
+      # The toolchain pinned in rust-toolchain.toml, plus this job's target.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          go-version-file: go.mod
-          cache: true
+          target: ${{ matrix.target }}
+          rustflags: ""
 
-      - uses: goreleaser/goreleaser-action@v7
-        with:
-          version: "~> v2"
-          args: release --clean
+      - name: Install musl tools
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+
+      - name: Build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          export PROTUI_VERSION="${GITHUB_REF_NAME#v}"
+          cargo build --release --locked --target "$TARGET"
+
+      - name: Package
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          name="protui_${GITHUB_REF_NAME#v}_${TARGET}"
+          mkdir "$name"
+          cp "target/$TARGET/release/protui" LICENSE README.md "$name/"
+          tar -czf "$name.tar.gz" "$name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: protui_*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum -- *.tar.gz > checksums.txt
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes
+
+  site:
+    name: Redeploy the site
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      # Runs the Pages workflow on main, where the site's source lives, and it
+      # writes in the release that now exists. Deploying from the tag instead
+      # would publish the site as it was at the tag, and the github-pages
+      # environment accepts deployments from main only by default.
+      - name: Run the Pages workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main

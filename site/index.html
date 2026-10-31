@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>protui — your Proton Pass SSH keys, in the terminal</title>
+<meta name="description" content="protui is a terminal UI for managing Proton Pass SSH keys with vim motions and one-letter actions. Unofficial; not affiliated with Proton AG.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&amp;family=Space+Grotesk:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0;background:#FFF8E7}
+a{color:#111111}a:hover{color:#5B34E0}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div style="background: #FFF8E7; color: #111111; font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 18px; line-height: 1.55">
+
+<header style="background: #FFD93D; border-bottom: 5px solid #111111">
+<nav aria-label="Main" style="max-width: 1200px; margin: 0 auto; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px">
+<a href="#top" style="display: flex; align-items: center; gap: 12px; text-decoration: none; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 24px">
+<svg width="40" height="40" viewBox="0 0 100 100" aria-hidden="true"><g transform="translate(4 4)" fill="#111111" stroke="#111111"><rect x="16" y="32" width="34" height="34" stroke-width="8"></rect><rect x="50" y="45" width="36" height="8" stroke="none"></rect><rect x="64" y="53" width="7" height="10" stroke="none"></rect><rect x="78" y="53" width="8" height="14" stroke="none"></rect></g><rect x="16" y="32" width="34" height="34" fill="#8C6BFF" stroke="#111111" stroke-width="8"></rect><rect x="28" y="44" width="10" height="10" fill="#111111"></rect><rect x="50" y="45" width="36" height="8" fill="#111111"></rect><rect x="64" y="53" width="7" height="10" fill="#111111"></rect><rect x="78" y="53" width="8" height="14" fill="#111111"></rect></svg>
+protui</a>
+<a data-release-chip hidden href="https://github.com/nxplain-sh/protui/releases/latest" style="background: #111111; color: #5BE3A6; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 14px; padding: 3px 10px; text-decoration: none"><span data-release-version></span></a>
+<div style="display: flex; flex-wrap: wrap; gap: 8px 24px; margin-left: auto; font-weight: 700">
+<a href="#keys">Keys</a>
+<a href="#security">Security</a>
+<a href="#install">Download</a>
+<a href="https://github.com/nxplain-sh/protui" style="background: #111111; color: #FFD93D; padding: 6px 14px; text-decoration: none">GitHub ↗</a>
+</div>
+</nav>
+</header>
+
+<main id="top">
+<section style="max-width: 1200px; margin: 0 auto; padding: 72px 24px 88px; display: flex; flex-wrap: wrap; align-items: center; gap: 56px">
+<div style="flex: 1 1 500px; min-width: 0; display: flex; flex-direction: column; gap: 28px">
+<p style="margin: 0; align-self: flex-start; background: #111111; color: #FFF8E7; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 14px; padding: 4px 12px; letter-spacing: 0.06em">TERMINAL UI · RUST · MIT</p>
+<h1 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 3.6rem; line-height: 1.05; letter-spacing: -0.03em">Your <span style="background: #8C6BFF; padding: 0 10px; box-shadow: 6px 6px 0 #111111">Proton Pass</span> SSH keys, in the terminal.</h1>
+<p style="margin: 0; font-size: 21px; max-width: 560px">List, generate, copy, trash and delete SSH keys — and run the SSH agent — with vim motions and one-letter actions. protui drives the official <code style="font-family: 'JetBrains Mono', monospace; background: #F1E6C8; padding: 1px 6px">pass-cli</code> and never touches a private key.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 20px">
+<a href="https://github.com/nxplain-sh/protui/releases/latest" style="background: #FFD93D; border: 4px solid #111111; box-shadow: 6px 6px 0 #111111; padding: 12px 22px; font-weight: 700; text-decoration: none">Download for macOS &amp; Linux ↓</a>
+<a href="https://github.com/nxplain-sh/protui" style="background: #FFFFFF; border: 4px solid #111111; box-shadow: 6px 6px 0 #111111; padding: 12px 22px; font-weight: 700; text-decoration: none">View source ↗</a>
+</div>
+<p style="margin: 0; font-size: 16px; color: #4F483B"><span data-release-chip hidden><b style="background: #5BE3A6; color: #111111; border: 3px solid #111111; padding: 0 8px; font-family: 'JetBrains Mono', monospace"><span data-release-version></span></b> is the latest release. </span>Prebuilt binaries on GitHub Releases. Rust developers can also <a href="#install">build from source</a>.</p>
+</div>
+
+<figure aria-label="The protui key list with the github-personal key selected" style="flex: 1 1 440px; min-width: 0; margin: 0; background: #FFFFFF; border: 5px solid #111111; box-shadow: 14px 14px 0 #111111; font-family: 'JetBrains Mono', monospace; font-size: 15px">
+<div style="background: #FFD93D; border-bottom: 5px solid #111111; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; font-weight: 800"><span><span style="background: #111111; color: #FFD93D; padding: 0 8px">◆ PROTUI</span></span><span style="display: flex; gap: 8px"><span style="background: #5BE3A6; padding: 0 8px">● AGENT UP</span><span style="background: #8C6BFF; padding: 0 8px">2/9 KEYS</span></span></div>
+<div style="padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 8px"><span><b>deploy-ci</b><br><span style="color: #6B6352">Work · UvImZaYMEtKJ…</span></span><span style="background: #5BE3A6; padding: 1px 8px; font-weight: 800; font-size: 13px">ED25519</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #8C6BFF; padding: 8px; box-shadow: 6px 6px 0 #111111"><span><b>▶ github-personal</b><br>Personal · oJXyD5OVZQz5…</span><span style="background: #111111; color: #FFF8E7; padding: 1px 8px; font-weight: 800; font-size: 13px">ED25519</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 8px"><span><b>hetzner-vps</b><br><span style="color: #6B6352">Infra · unJJm/oSHoNr…</span></span><span style="background: #FF7AB8; padding: 1px 8px; font-weight: 800; font-size: 13px">RSA4096</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 8px"><span><b>old-macbook</b><br><span style="color: #6B6352">Personal · K5wdfg83xEkh…</span></span><span style="background: #FFA24C; padding: 1px 8px; font-weight: 800; font-size: 13px">RSA2048</span></div>
+</div>
+<div style="border-top: 5px solid #111111; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px"><span><b style="background: #FFD93D; padding: 0 6px">c</b> copy</span><span><b style="background: #FFD93D; padding: 0 6px">n</b> new</span><span><b style="background: #FFD93D; padding: 0 6px">/</b> filter</span><span><b style="background: #FFD93D; padding: 0 6px">a</b> agent</span><span><b style="background: #FF5A5A; padding: 0 6px">D</b> delete</span></div>
+</figure>
+</section>
+
+<section aria-labelledby="req" style="background: #111111; color: #FFF8E7">
+<div style="max-width: 1200px; margin: 0 auto; padding: 40px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 24px 48px">
+<div style="flex: 1 1 360px">
+<h2 id="req" style="margin: 0 0 6px; font-family: 'JetBrains Mono', monospace; font-size: 26px; color: #FFD93D">Requires pass-cli</h2>
+<p style="margin: 0">protui doesn't talk to Proton's servers. It shells out to the official Proton Pass CLI, which must be installed and logged in — otherwise protui exits before opening a UI you can't use.</p>
+</div>
+<pre style="flex: 1 1 360px; min-width: 0; margin: 0; background: #262626; border: 3px solid #FFD93D; font-family: 'JetBrains Mono', monospace; font-size: 15px; padding: 16px 20px; overflow-x: auto"><span style="color: #FFD93D">$</span> brew install protonpass/tap/pass-cli
+<span style="color: #FFD93D">$</span> pass-cli login</pre>
+</div>
+</section>
+
+<section id="keys" aria-labelledby="keys-h" style="max-width: 1200px; margin: 0 auto; padding: 88px 24px">
+<h2 id="keys-h" style="margin: 0 0 12px; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 2.6rem; letter-spacing: -0.02em">Navigate like vim. Act with one letter.</h2>
+<p style="margin: 0 0 40px; max-width: 680px">Motions keep vim's meaning. Actions follow lazygit and k9s: one mnemonic letter each. No <code style="font-family: 'JetBrains Mono', monospace">dd</code> or <code style="font-family: 'JetBrains Mono', monospace">yy</code> — a list has one object under the cursor and no motions to disambiguate.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 36px">
+<div style="flex: 1 1 420px; min-width: 0; border: 5px solid #111111; box-shadow: 10px 10px 0 #111111; background: #FFFFFF">
+<h3 style="margin: 0; background: #8C6BFF; border-bottom: 5px solid #111111; padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 18px">MOVE</h3>
+<dl style="margin: 0; padding: 20px; display: grid; grid-template-columns: auto 1fr; gap: 14px 20px; align-items: center; font-size: 17px">
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">j</span> <span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">k</span></dt><dd style="margin: 0">down / up</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">gg</span> <span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">G</span></dt><dd style="margin: 0">top / bottom</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">^f</span> <span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">^b</span></dt><dd style="margin: 0">page down / up</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">^d</span> <span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">^u</span></dt><dd style="margin: 0">half page down / up</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">/</span></dt><dd style="margin: 0">fuzzy filter by title, vault, comment or fingerprint</dd>
+</dl>
+</div>
+<div style="flex: 1 1 420px; min-width: 0; border: 5px solid #111111; box-shadow: 10px 10px 0 #111111; background: #FFFFFF">
+<h3 style="margin: 0; background: #5BE3A6; border-bottom: 5px solid #111111; padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 18px">ACT</h3>
+<dl style="margin: 0; padding: 20px; display: grid; grid-template-columns: auto 1fr; gap: 14px 20px; align-items: center; font-size: 17px">
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">c</span> <span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">y</span></dt><dd style="margin: 0">copy the public key</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">n</span></dt><dd style="margin: 0">generate a new key</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFA24C; border: 3px solid #111111; padding: 0 8px">d</span></dt><dd style="margin: 0">move to trash — recoverable</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FF5A5A; border: 3px solid #111111; padding: 0 8px">D</span></dt><dd style="margin: 0">delete permanently — type the title to confirm</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #5BE3A6; border: 3px solid #111111; padding: 0 8px">a</span></dt><dd style="margin: 0">SSH agent: status, start, stop</dd>
+<dt style="font-family: 'JetBrains Mono', monospace; font-weight: 800"><span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">r</span> <span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">?</span> <span style="background: #FFD93D; border: 3px solid #111111; padding: 0 8px">q</span></dt><dd style="margin: 0">reload · help · quit</dd>
+</dl>
+</div>
+</div>
+</section>
+
+<section id="security" aria-labelledby="sec-h" style="background: #8C6BFF; border-top: 5px solid #111111; border-bottom: 5px solid #111111">
+<div style="max-width: 1200px; margin: 0 auto; padding: 88px 24px">
+<h2 id="sec-h" style="margin: 0 0 40px; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 2.6rem; letter-spacing: -0.02em">Built so secrets stay secret.</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px">
+<article style="background: #FFF8E7; border: 5px solid #111111; box-shadow: 8px 8px 0 #111111; padding: 24px">
+<h3 style="margin: 0 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 19px">No private key, ever</h3>
+<p style="margin: 0">The one upstream call that returns private key material is never used. Public keys are read one field at a time.</p>
+</article>
+<article style="background: #FFF8E7; border: 5px solid #111111; box-shadow: 8px 8px 0 #111111; padding: 24px">
+<h3 style="margin: 0 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 19px">Nothing secret in argv</h3>
+<p style="margin: 0">Passphrases reach pass-cli through the environment, not the command line any user can read with <code style="font-family: 'JetBrains Mono', monospace">ps</code>.</p>
+</article>
+<article style="background: #FFF8E7; border: 5px solid #111111; box-shadow: 8px 8px 0 #111111; padding: 24px">
+<h3 style="margin: 0 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 19px">Escape sequences stripped</h3>
+<p style="margin: 0">Shared titles and comments are sanitised before drawing, so they can't clear your screen or write your clipboard via OSC 52.</p>
+</article>
+<article style="background: #FFF8E7; border: 5px solid #111111; box-shadow: 8px 8px 0 #111111; padding: 24px">
+<h3 style="margin: 0 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 19px">Fingerprints, computed locally</h3>
+<p style="margin: 0">Algorithm and fingerprint come from the public key itself — no extra secret access, and <code style="font-family: 'JetBrains Mono', monospace">--show-secrets</code> is never passed.</p>
+</article>
+<article style="background: #FFF8E7; border: 5px solid #111111; box-shadow: 8px 8px 0 #111111; padding: 24px">
+<h3 style="margin: 0 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 19px">Scanned in CI</h3>
+<p style="margin: 0">Dependencies are checked against the RustSec advisory database, clippy treats every warning as an error, and the tests run on Linux and macOS.</p>
+</article>
+<article style="background: #FFF8E7; border: 5px solid #111111; box-shadow: 8px 8px 0 #111111; padding: 24px">
+<h3 style="margin: 0 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 19px">Decisions on record</h3>
+<p style="margin: 0">Every architectural choice has an ADR — <a href="https://github.com/nxplain-sh/protui/tree/main/docs/adr">read the reasoning ↗</a></p>
+</article>
+</div>
+</div>
+</section>
+
+<section id="install" aria-labelledby="inst-h" style="max-width: 1200px; margin: 0 auto; padding: 88px 24px; display: flex; flex-wrap: wrap; gap: 40px 56px">
+<div style="flex: 1 1 360px; min-width: 0">
+<h2 id="inst-h" style="margin: 0 0 12px; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 2.6rem; letter-spacing: -0.02em">Install</h2>
+<p style="margin: 0 0 16px">Download the binary for your platform from the latest release, put it on your <code style="font-family: 'JetBrains Mono', monospace">PATH</code>, and run <code style="font-family: 'JetBrains Mono', monospace">protui</code>. macOS and Linux; Windows is not supported.</p>
+<p style="margin: 0">Copying uses the system clipboard: built in on macOS, <code style="font-family: 'JetBrains Mono', monospace">xclip</code>, <code style="font-family: 'JetBrains Mono', monospace">xsel</code> or <code style="font-family: 'JetBrains Mono', monospace">wl-copy</code> on Linux.</p>
+</div>
+<div style="flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 28px">
+<div style="border: 5px solid #111111; box-shadow: 10px 10px 0 #111111; background: #FFD93D; padding: 28px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px"><p style="margin: 0; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 22px">Latest release</p><p data-release-chip hidden style="margin: 0; background: #111111; color: #5BE3A6; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 28px; padding: 2px 14px"><span data-release-version></span></p><p data-release-chip hidden style="margin: 0; font-size: 15px">released <span data-release-date></span></p></div>
+<p style="margin: 0">Prebuilt binaries for macOS and Linux, attached to every GitHub release.</p>
+<a href="https://github.com/nxplain-sh/protui/releases/latest" style="align-self: flex-start; background: #111111; color: #FFD93D; border: 4px solid #111111; box-shadow: 6px 6px 0 #8C6BFF; padding: 12px 24px; font-family: 'JetBrains Mono', monospace; font-weight: 800; text-decoration: none">Download <span data-release-chip hidden data-release-version></span> ↓</a>
+<a href="https://github.com/nxplain-sh/protui/releases" style="font-size: 15px">All releases &amp; changelog ↗</a>
+</div>
+<details style="border: 5px solid #111111; background: #FFFFFF">
+<summary style="cursor: pointer; background: #F1E6C8; padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 15px">ADVANCED · BUILD FROM SOURCE WITH CARGO</summary>
+<pre style="margin: 0; padding: 16px; border-top: 5px solid #111111; font-family: 'JetBrains Mono', monospace; font-size: 15px; overflow-x: auto"># install straight from the repo; needs Rust 1.88 or newer
+cargo install --locked --git https://github.com/nxplain-sh/protui protui
+
+# or from a clone
+cargo xtask build   # → target/release/protui
+cargo xtask install # → ~/.cargo/bin/protui</pre>
+</details>
+</div>
+</section>
+
+<section aria-labelledby="scope-h" style="max-width: 1200px; margin: 0 auto; padding: 0 24px 88px">
+<div style="background: #FFD93D; border: 5px solid #111111; box-shadow: 10px 10px 0 #111111; padding: 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 40px">
+<h2 id="scope-h" style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 24px; flex: 0 0 auto">SSH keys. That's it.</h2>
+<p style="margin: 0; flex: 1 1 420px">v1 lists, generates, views, copies, trashes and deletes SSH keys, and manages the agent. Logins, notes, TOTP and vault management stay with <code style="font-family: 'JetBrains Mono', monospace">pass-cli</code>.</p>
+</div>
+</section>
+</main>
+
+<footer style="background: #111111; color: #FFF8E7; border-top: 5px solid #111111">
+<div style="max-width: 1200px; margin: 0 auto; padding: 36px 24px; display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: center; font-size: 15px">
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 800; background: #FFD93D; color: #111111; padding: 2px 10px">◆ protui</span>
+<span>MIT licence · an <a href="https://github.com/nxplain-sh" style="color: #FFD93D">nxplain.sh</a> tool</span>
+<span style="margin-left: auto; color: #CFC8B6">Unofficial. Not affiliated with, endorsed by, or supported by Proton AG. Proton Pass is a trademark of Proton AG.</span>
+</div>
+</footer>
+</div>
+</body>
+</html>

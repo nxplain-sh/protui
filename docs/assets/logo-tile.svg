@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="protui">
+  <rect width="128" height="128" fill="#FFD93D"/>
+  <g transform="translate(14 14)">
+  <g transform="translate(4 4)" fill="#111111" stroke="#111111"><rect x="16" y="32" width="34" height="34" stroke-width="8"/><rect x="50" y="45" width="36" height="8" stroke="none"/><rect x="64" y="53" width="7" height="10" stroke="none"/><rect x="78" y="53" width="8" height="14" stroke="none"/></g>
+  <rect x="16" y="32" width="34" height="34" fill="#8C6BFF" stroke="#111111" stroke-width="8"/>
+  <rect x="28" y="44" width="10" height="10" fill="#111111"/>
+  <rect x="50" y="45" width="36" height="8" fill="#111111"/>
+  <rect x="64" y="53" width="7" height="10" fill="#111111"/>
+  <rect x="78" y="53" width="8" height="14" fill="#111111"/>
+  </g>
+</svg>

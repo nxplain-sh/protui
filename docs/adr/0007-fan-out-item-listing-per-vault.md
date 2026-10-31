@@ -67,3 +67,10 @@ display and never passed.
 There is a test covering the case that matters: one vault succeeding and one
 failing must leave the successful vault's keys listed and name the failing vault
 in the status line.
+
+## Amended 2026-10-30
+
+protui is now Rust ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). The per-vault calls are issued concurrently as
+tokio tasks rather than Bubble Tea commands, and each result carries the load it
+belongs to, so a refresh while a fan-out is in flight cannot merge two loads
+into one list.

@@ -63,3 +63,10 @@ fixture for exactly that case.
 Fixtures live in `internal/passcli/testdata/` and are excluded from prettier, so
 they stay byte-for-byte as captured. One fixture carries invented future fields
 specifically to prove additive changes are survivable.
+
+## Amended 2026-10-30
+
+protui is now Rust ([rewrite in Rust with ratatui](0014-rewrite-in-rust-with-ratatui.md)). serde ignores unknown fields unless
+`deny_unknown_fields` is set, and it is deliberately not set, so the additive
+case is handled as before; required fields are still validated after decoding.
+Fixtures moved to `src/passcli/testdata/`.

@@ -1,0 +1,9 @@
+# The Rust that every build uses — development, CI and release — so all of
+# them compile with the same compiler and lints. Renovate bumps it.
+#
+# The oldest Rust protui supports is `rust-version` in Cargo.toml; CI tests
+# that one separately.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"
