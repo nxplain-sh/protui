@@ -94,18 +94,17 @@ pub fn tee(buf: &mut Buffer, area: Rect, y: u16, glyphs: &BoxGlyphs, style: Styl
     symbol(buf, right, y, glyphs.tee_right, style);
 }
 
-/// Draws the hard shadow of `area`, `dx` columns to the right and half a row
-/// down: a lower half-block beside the top row, solid cells beside the rest,
-/// and upper half-blocks along the bottom.
-pub fn shadow(buf: &mut Buffer, area: Rect, dx: u16, color: Color) {
+/// Draws the hard shadow of `area`, one column to the right and half a row
+/// down — the same distance both ways, since a terminal cell is about twice
+/// as tall as it is wide. A lower half-block sits beside the top row, solid
+/// cells beside the rest, and upper half-blocks along the bottom.
+pub fn shadow(buf: &mut Buffer, area: Rect, color: Color) {
     let right = area.right();
-    for x in right..right.saturating_add(dx) {
-        shade(buf, x, area.top(), GLYPH_LOWER_HALF, color);
-        for y in area.top() + 1..area.bottom() {
-            solid(buf, x, y, color);
-        }
+    shade(buf, right, area.top(), GLYPH_LOWER_HALF, color);
+    for y in area.top() + 1..area.bottom() {
+        solid(buf, right, y, color);
     }
-    for x in area.left().saturating_add(dx)..right.saturating_add(dx) {
+    for x in area.left().saturating_add(1)..=right {
         shade(buf, x, area.bottom(), GLYPH_UPPER_HALF, color);
     }
 }
@@ -118,7 +117,7 @@ pub fn chip(buf: &mut Buffer, x: u16, y: u16, label: &str, style: Style) -> u16 
 }
 
 /// Draws the button ` key  LABEL ` and returns its width. Given a style it is
-/// live, with a shadow one column deep; without one it is disabled and flat.
+/// live, with a shadow; without one it is disabled and flat.
 pub fn button(
     buf: &mut Buffer,
     x: u16,
@@ -132,7 +131,7 @@ pub fn button(
     let style = style.unwrap_or_else(|| theme.disabled_button());
     let width = chip(buf, x, y, &format!("{key}  {label}"), style);
     if live {
-        shadow(buf, Rect::new(x, y, width, 1), 1, theme.shadow);
+        shadow(buf, Rect::new(x, y, width, 1), theme.shadow);
     }
     width
 }
@@ -216,29 +215,22 @@ mod tests {
 
     #[test]
     fn a_shadow_sits_beside_and_below_its_box() {
-        for (dx, want) in [
-            (1, ["      ", " ▄    ", " █    ", " ▀    "]),
-            (2, ["      ", " ▄▄   ", " ██   ", "  ▀   "]),
-        ] {
-            let mut buf = Buffer::empty(Rect::new(0, 0, 6, 4));
+        let mut buf = Buffer::empty(Rect::new(0, 0, 5, 4));
 
-            shadow(&mut buf, Rect::new(0, 1, 1, 2), dx, Color::Reset);
+        shadow(&mut buf, Rect::new(0, 1, 2, 2), Color::Reset);
 
-            assert_eq!(rows(&buf), want, "dx = {dx}");
-        }
+        assert_eq!(rows(&buf), ["     ", "  ▄  ", "  █  ", " ▀▀  "]);
     }
 
     #[test]
     fn a_shadow_clips_at_the_right_and_bottom_edges() {
-        for dx in [1, 2] {
-            let mut buf = Buffer::empty(Rect::new(0, 0, 4, 3));
+        let mut buf = Buffer::empty(Rect::new(0, 0, 4, 3));
 
-            // The box reaches the bottom-right corner, so its shadow falls
-            // entirely off screen; drawing it must not panic.
-            shadow(&mut buf, Rect::new(2, 1, 2, 2), dx, Color::Reset);
+        // The box reaches the bottom-right corner, so its shadow falls
+        // entirely off screen; drawing it must not panic.
+        shadow(&mut buf, Rect::new(2, 1, 2, 2), Color::Reset);
 
-            assert_eq!(rows(&buf), ["    ", "    ", "    "], "dx = {dx}");
-        }
+        assert_eq!(rows(&buf), ["    ", "    ", "    "]);
     }
 
     #[test]

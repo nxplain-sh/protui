@@ -27,7 +27,7 @@ their frames. And protui was about to get a README banner and a website with
 no visual identity in common with the TUI.
 
 `docs/design/protui-design.md` specifies a replacement: heavy ink borders,
-hard two-column shadows, a filled yellow header, a filled selected row, a
+hard shadows, a filled yellow header, a filled selected row, a
 colour chip per algorithm, a filled title band per dialog, hazard stripes on
 the permanent delete, and a dark footer key bar. It draws only what a terminal
 can draw — truecolor, bold, box-drawing and block elements — and the same

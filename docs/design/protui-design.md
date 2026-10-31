@@ -11,7 +11,7 @@ block-element glyphs. No emoji, no Nerd Font glyphs.
 ## The seven rules
 
 1. Borders are ink and heavy (`┏━┓┃┗┛┣┫`). Never faint grey.
-2. Shadows are solid: 2 columns right, half a row down (built from `▄` `▀` and filled cells).
+2. Shadows are solid: 1 column right, half a row down (built from `▄` `▀` and filled cells). A cell is about twice as tall as it is wide, so that is the same distance both ways.
 3. Coloured fills always carry ink (`#111111`) text. Never white on colour.
 4. One filled band per surface: the header, the selected row, a dialog's title band.
 5. The key algorithm is a colour chip, so the list scans without reading.
@@ -68,11 +68,16 @@ If the terminal does not advertise truecolor (`COLORTERM` is not `truecolor` or
 
 ### Shadow
 
-For a rectangle at `(x, y)` of size `w × h`, with offset `dx` (2 for panes and
-dialogs, 1 for buttons, inputs and status chips):
+For a rectangle at `(x, y)` of size `w × h`, the same for every surface:
 
-- Columns `x+w … x+w+dx-1`: row `y` gets `▄` in the shadow colour; rows `y+1 … y+h-1` are solid shadow.
-- Row `y+h`: columns `x+dx … x+w+dx-1` get `▀` in the shadow colour.
+- Column `x+w`: row `y` gets `▄` in the shadow colour; rows `y+1 … y+h-1` are solid shadow.
+- Row `y+h`: columns `x+1 … x+w` get `▀` in the shadow colour.
+
+Shadows were first specified two columns deep for panes and dialogs. Against
+a half-row drop that leans twice as far sideways as down, so every shadow is
+now one column deep. The reference grids below still show the two-column
+version; the text wins.
+
 - Clip to the screen. Draw after the backdrop and before anything that sits on top.
 
 One helper, used everywhere. It is the single most recognisable element of the style.
@@ -98,13 +103,13 @@ then `matching “git” in 2 of 9 keys`.
   title line, one column in from the list's edge.
 - **Selected:** the whole 2-row block is filled violet; `▶ title` bold ink; the summary
   in ink; the chip inverted (ink fill, ground text) on light terminals and keeps its
-  algorithm fill on dark ones; a shadow with `dx = 2` (the spacing row absorbs it).
+  algorithm fill on dark ones; a shadow (the spacing row absorbs it).
 - **Filter matches:** matched characters get a yellow fill with ink bold text.
 - When more rows exist below, show `↓ N more` in `faint` under the list.
 
 ### Detail pane
 
-- Heavy box with a shadow (`dx = 2`). Same width split and same 92-column cut-off as today.
+- Heavy box with a shadow. Same width split and same 92-column cut-off as today.
 - Rows 1–3 inside: violet band. Title bold on the middle row at inner column 2; algorithm chip right-aligned.
 - Row 4: tee rule `┣━━┫`.
 - Label/value rows from row 6: labels uppercase, bold, `muted`, in a 14-column label column.
@@ -137,7 +142,7 @@ A chip plus a bold message:
 
 - **Backdrop:** instead of a blank screen, fill with `·` in `dots` at every 4th column,
   offset by 2 columns on odd rows.
-- Centred heavy box, filled with ground, shadow `dx = 2`.
+- Centred heavy box, filled with ground, with a shadow.
 - Rows 1–3: a title band in the dialog's colour. Middle row: an icon chip (`+`, `d`, `a`, `!`) in
   the band colour on ink, then the title in bold caps.
 - Row 4: tee rule. Body starts at row 6, indent 3. Buttons on the third-from-last row.
@@ -156,7 +161,7 @@ chip, then the explanation in `danger`.
 
 ### Buttons
 
-`key  LABEL` — bold ink on a fill, shadow `dx = 1`.
+`key  LABEL` — bold ink on a fill, with a shadow.
 
 - Primary: yellow. Cancel: `code` fill.
 - Trash confirm: orange. Agent stop: pink.
@@ -167,23 +172,23 @@ chip, then the explanation in `danger`.
 
 - Label column of 14, labels uppercase bold `muted`. The focused label gets a yellow fill.
 - Unfocused text input: light box, value in `ink` or placeholder in `faint`.
-- Focused text input: heavy box, shadow `dx = 1`, value bold, cursor as a solid ink cell.
+- Focused text input: heavy box with a shadow, value bold, cursor as a solid ink cell.
 - Vault selector: `‹ value ›` with faint arrows.
 - Type selector: a segmented row — each option `  ED25519  ` on `code`, the selected one on mint, bold; `←/→` hint in `faint`.
 - Passphrase stays masked with `•`.
 - Under the fields, two `▸` notes in `muted` (comment lives in the public key; the passphrase goes via the environment).
 - Buttons: `enter  CREATE` (yellow), `esc  CANCEL` (`code`), and a faint `tab  next field` on the right.
-- The delete confirmation input: heavy box, **red** shadow `dx = 1`, typed-count `11/15` in `faint` on the right.
+- The delete confirmation input: heavy box, **red** shadow, typed-count `11/15` in `faint` on the right.
 
 ### Agent panel
 
-- `STATUS` chip with a shadow `dx = 1`: running `● RUNNING` on mint; stopped `○ STOPPED` on `code`; degraded `◐ <detail>` on orange; unknown on orange.
+- `STATUS` chip with a shadow: running `● RUNNING` on mint; stopped `○ STOPPED` on `code`; degraded `◐ <detail>` on orange; unknown on orange.
 - `PID` and `SOCKET` rows. When running, a `POINT SSH AT IT` inverted chip and the `export SSH_AUTH_SOCK=…` line in a `code` block.
 - Buttons: `s START`, `x STOP` (pink), `r REFRESH` (yellow), `esc back` as plain muted text.
 
 ### Empty and error states
 
-- Header and footer stay. Centred box (about 50×11) filled yellow, heavy border, shadow `dx = 2`:
+- Header and footer stay. Centred box (about 50×11) filled yellow, heavy border, with a shadow:
   `NO SSH KEYS YET` bold, a one-line explanation, then `n  CREATE ONE` (violet button) and `r  reload`.
 - Error: same box filled with ground, a red `✗ COULDN'T LOAD KEYS` chip, the error text, then `r  RETRY` (yellow) and `q  quit`.
 - Loading: the same box shape with the spinner and `Loading keys…`.

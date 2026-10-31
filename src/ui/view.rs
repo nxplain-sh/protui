@@ -325,7 +325,7 @@ impl Model {
 
             let (title_style, summary_style) = if selected {
                 draw::fill(buf, block, theme.fill(theme.violet));
-                draw::shadow(buf, block, 2, theme.shadow);
+                draw::shadow(buf, block, theme.shadow);
                 draw::text(
                     buf,
                     block_x + 1,
@@ -493,7 +493,7 @@ impl Model {
             slot.height,
         );
         draw::clear(buf, rect);
-        draw::shadow(buf, rect, 2, theme.shadow);
+        draw::shadow(buf, rect, theme.shadow);
         draw::outline(buf, rect, &HEAVY, theme.text(theme.ink));
 
         let inner = rect.inner(Margin::new(1, 1));
@@ -917,7 +917,7 @@ impl Model {
         if let Some(fill) = fill {
             draw::fill(buf, rect.inner(Margin::new(1, 1)), theme.fill(fill));
         }
-        draw::shadow(buf, rect, 2, theme.shadow);
+        draw::shadow(buf, rect, theme.shadow);
         draw::outline(buf, rect, &HEAVY, theme.text(theme.ink));
         rect
     }
@@ -1031,7 +1031,7 @@ impl Model {
             theme.shadow
         };
         draw::clear(buf, rect);
-        draw::shadow(buf, rect, 2, shadow);
+        draw::shadow(buf, rect, shadow);
         draw::outline(buf, rect, &HEAVY, theme.text(theme.ink));
 
         let inner = rect.inner(Margin::new(1, 1));
@@ -1223,7 +1223,7 @@ impl Model {
 
         let input = Rect::new(body.x, body.y + INPUT_ROW, body.width.saturating_sub(2), 3);
         draw::outline(buf, input, &HEAVY, theme.text(theme.ink));
-        draw::shadow(buf, input, 1, theme.red);
+        draw::shadow(buf, input, theme.red);
 
         let count = format!(
             "{}/{}",
@@ -1341,7 +1341,7 @@ impl Model {
         } else {
             let (state, style) = self.agent_state_chip();
             let width = draw::chip(buf, value_x, y, &state, style);
-            draw::shadow(buf, Rect::new(value_x, y, width, 1), 1, theme.shadow);
+            draw::shadow(buf, Rect::new(value_x, y, width, 1), theme.shadow);
         }
         y += 2;
 
