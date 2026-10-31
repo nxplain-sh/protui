@@ -22,15 +22,29 @@ pub const MAX_PUBLIC_KEY_FETCHES: usize = 4;
 /// the full width.
 pub const DETAIL_PANE_MIN_WIDTH: u16 = 92;
 
-/// The detail pane's left border plus its left padding, which come off the
-/// width its text has.
-pub const DETAIL_CHROME: u16 = 3;
+/// What comes off the detail pane's slot before its text: the gap before the
+/// box, both borders, a two-column margin inside each, and the shadow.
+pub const DETAIL_CHROME: u16 = 9;
 
-/// The wordmark, the rule beneath it, and a blank line.
-pub const HEADER_ROWS: u16 = 3;
+/// The filled band and the rule beneath it.
+pub const HEADER_ROWS: u16 = 4;
 
-/// The rule and the status line above the help.
+/// Where the detail box starts: under the header and a blank row.
+pub const DETAIL_TOP: u16 = 5;
+
+/// Where the list starts: under the header, the section label and a blank row
+/// either side of it.
+pub const LIST_TOP: u16 = 7;
+
+/// Between the list and the footer: the row that says more keys are below,
+/// the status line, and a blank row.
+pub const STATUS_ROWS: u16 = 3;
+
+/// The footer's padding rows, above and below the keys.
 pub const FOOTER_ROWS: u16 = 2;
+
+/// The detail box's title band and the rule under it, which do not scroll.
+pub const DETAIL_BAND_ROWS: usize = 4;
 
 /// Each key is drawn as two lines, then a blank one.
 pub const ROW_HEIGHT: usize = 3;
@@ -264,11 +278,29 @@ impl Model {
         }
     }
 
-    /// The room between the header and the footer.
+    /// The rows the list has, which are also the rows inside the detail box.
     #[must_use]
     pub(super) fn body_height(&self) -> usize {
-        let chrome = HEADER_ROWS + FOOTER_ROWS + self.help_rows();
+        let chrome = LIST_TOP + STATUS_ROWS + FOOTER_ROWS + self.help_rows();
         usize::from(self.height.saturating_sub(chrome)).max(1)
+    }
+
+    /// Reports whether the detail box has room for its title band and still
+    /// shows a few rows beneath it. On a very short terminal the band is
+    /// dropped so the details themselves stay visible.
+    #[must_use]
+    pub(super) fn has_detail_band(&self) -> bool {
+        self.body_height() >= DETAIL_BAND_ROWS * 2
+    }
+
+    /// The rows the detail pane's scrolling part has.
+    #[must_use]
+    pub(super) fn detail_body_height(&self) -> usize {
+        if self.has_detail_band() {
+            self.body_height() - DETAIL_BAND_ROWS
+        } else {
+            self.body_height()
+        }
     }
 
     /// How many keys fit on screen, used to size a page jump.

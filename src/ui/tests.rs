@@ -10,20 +10,27 @@ use std::time::Instant;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
-use ratatui::buffer::Buffer;
+use ratatui::buffer::{Buffer, Cell};
 use ratatui::style::{Color, Modifier};
 
 use crate::keys::{ItemId, ItemRef, Key, ShareId, State, Vault};
 use crate::passcli::{AgentState, AgentStatus, CommandError};
-use crate::ui::create_form::{CreateForm, Field};
+use crate::ui::create_form::CreateForm;
 use crate::ui::key_list::FilterState;
 use crate::ui::message::{Command, Message, Removal};
-use crate::ui::model::{Mode, Model};
-use crate::ui::theme::{Background, ColorDepth, Theme};
+use crate::ui::model::{FOOTER_ROWS, Mode, Model, Tone};
+use crate::ui::theme::{Background, ColorDepth, GLYPH_LOWER_HALF, GLYPH_UPPER_HALF, Theme};
 
 const TEST_PUBLIC_KEY: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM+XgkeZS/lofu0u1xq0g4DQUZIOxGcdSqHhQbjKwVEQ laptop@example";
 
 const PREVIEW_RSA: &str = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDDMU3w/a9F5JytBm0CPnKCZ9XlyVxG7d3afM0dJg1+4yZp2dWifkADPAxWAxaLnY7gcJzyCDIC3j5klN1deFpspph4AX09detMoaunhNa/xpxFmWRHin36F+6EQWAKtshvBCoenF8PCcFYrnGsatPPxI2Dbyl0QNacQgfiG4C0YLS1/Ajx/JyY8MwoVqM6hIBmE/hVdAzH+EwVe7R7jLcLNAW63j71At/OYyWOCMeOkPN3JPzRHxadMl666XI/ML0tzmv2akTi3bohkQUtXtFS7rFmVhZF78kYACs4gWoyxNCPpHFh3omYLvGL5xk0qhCgs0O99d6vmNZ2BDb1MNgf deploy@ci";
+
+// Throwaway keys, generated for these tests; only their public halves exist.
+const CI_PUBLIC_KEY: &str =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKYfN8FVoqYkl6+g63EchcFyQdtwRy7eeNd7oTeKCZoJ ci@deploy";
+const LAPTOP_PUBLIC_KEY: &str =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJZ4+polYKbuiybA7H8XEH7wRapg93CEvEWIN77KJ0ap me@laptop";
+const RSA4096_PUBLIC_KEY: &str = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCsRQPBhN48muNNy971dmqmrTeL4PIo3ivnerKyUMvVtZx9g9bNbcrwjCly6vj2dHVN36TiFUwZtzmPFoTvEU+EubG1e/LpMyLEvm1crPh/0v5+CchZ+ebH7/edL1hm71k6/IjxaeNx3cYb0bRTseyNCRNqwMWOimgcPPoiinVNlWGscpVM0qWebm/4xXyH4znrK/dQocnUJ8LXkdKtJ3j4I2c42xINEYx5UdYEJuPI19mozE0T3Ot9GsM+68hqRzCoKz30CmS0bLmLuXY1nYnGfT8EZbzPaX2Rmrv16reULBuElAtCPtCXj6kabWkfq/idknowgLbt6ZK1zMLaHx7tFhiXZ1QcufXlY3iTAZTgDl0vTXot915V2jbAZbZnyRtZxh6aU2o/orjtBBXaCQI42awIq4On4628pFVIqZZoKlXLHnV5GkIEzvmUdyaJ/1kKHmlifRf4Oyr+r2Bbn5i4lUtY3IZ+p7f+gBP/sINBqJh4A70dnRiLvPBbXpgOqWhCdF34C3X6A1ASrdvIXSgyw9QmhpdHiyuqMrNeFi8sTGEhgTSOVGbJooXKb7XJsN36rNQRZ4q4RtfLTf54Qe5KVLF5Lo50WMzKycmgonh1bB9u7nghPcpMdVR4eRV1r8U2EmTYRxaljx57+8UriXIZ7xVvfhKzbWGDyWlvjcP7Xw== root@hetzner";
 
 fn vault(name: &str, share_id: &str) -> Vault {
     Vault {
@@ -345,7 +352,7 @@ fn filtering_narrows_the_list_and_the_header_says_so() {
         Some("key-11")
     );
     assert!(
-        render(&model).contains("1/1 of 12 keys"),
+        render(&model).contains("1/1 OF 12 KEYS"),
         "{}",
         render(&model)
     );
@@ -395,33 +402,33 @@ fn view_renders_every_mode() {
     // A public key arriving must populate the derived metadata shown in both
     // the list row and the detail pane.
     deliver_public_key(&mut base, "share-1", "item-1", TEST_PUBLIC_KEY);
-    assert!(render(&base).contains("ed25519"));
+    assert!(render(&base).contains("ED25519"));
 
     let screens: Vec<(&str, Mode, &[&str])> = vec![
         (
             "list with detail pane",
             Mode::List,
-            &["protui", "laptop", "Personal", "ed25519", "Fingerprint"],
+            &["PROTUI", "laptop", "Personal", "ED25519", "FINGERPRINT"],
         ),
         (
             "create form",
             Mode::Create(CreateForm::new(test_vaults(), None)),
-            &["New SSH key", "Title", "Vault", "Passphrase", "ed25519"],
+            &["NEW SSH KEY", "TITLE", "VAULT", "PASSPHRASE", "ED25519"],
         ),
         (
             "trash confirmation",
             Mode::ConfirmTrash(test_keys().remove(0)),
-            &["Move to trash", "laptop", "untrash"],
+            &["MOVE TO TRASH", "laptop", "untrash"],
         ),
         (
             "permanent delete confirmation",
             Mode::ConfirmDelete(test_keys().remove(0)),
-            &["Permanently delete", "cannot be undone", "Type the title"],
+            &["PERMANENTLY DELETE", "CANNOT BE UNDONE", "TYPE THE TITLE"],
         ),
         (
             "agent panel",
             Mode::Agent,
-            &["SSH agent daemon", "running", "4321", "SSH_AUTH_SOCK"],
+            &["SSH AGENT DAEMON", "RUNNING", "4321", "SSH_AUTH_SOCK"],
         ),
     ];
 
@@ -485,7 +492,7 @@ fn the_view_survives_narrow_terminals() {
         // panicking matters there.
         if width > 1 {
             assert!(
-                render(&model).contains("protui"),
+                render(&model).contains("PROTUI"),
                 "{width}x{height} lost the header"
             );
         }
@@ -510,10 +517,10 @@ fn empty_and_loading_states() {
     });
     let screen = render(&model);
     assert!(
-        screen.contains("No SSH keys found"),
+        screen.contains("NO SSH KEYS YET"),
         "the empty view should offer to create one:\n{screen}"
     );
-    assert!(screen.contains("no keys"));
+    assert!(screen.contains("NO KEYS"));
 }
 
 #[test]
@@ -534,7 +541,7 @@ fn a_failed_vault_listing_is_shown_with_a_retry_hint() {
         screen.contains("pass-cli vault list: session expired"),
         "{screen}"
     );
-    assert!(screen.contains("to retry"), "{screen}");
+    assert!(screen.contains("RETRY"), "{screen}");
     assert!(!model.busy());
 }
 
@@ -791,13 +798,13 @@ fn the_fingerprint_is_never_truncated() {
 #[test]
 fn the_header_shows_the_position() {
     let mut model = list_with(40);
-    assert!(render(&model).contains("1/40 keys"));
+    assert!(render(&model).contains("1/40 KEYS"));
 
     press(&mut model, &[ctrl('f')]);
 
     let screen = render(&model);
     assert!(
-        !screen.contains("1/40 keys") && screen.contains("/40 keys"),
+        !screen.contains("1/40 KEYS") && screen.contains("/40 KEYS"),
         "{screen}"
     );
 }
@@ -811,7 +818,7 @@ fn the_detail_never_overflows_its_pane() {
         deliver_public_key(&mut model, "share-1", "item-1", TEST_PUBLIC_KEY);
 
         assert!(
-            model.detail_window().len() <= model.body_height(),
+            model.detail_window().len() <= model.detail_body_height(),
             "at height {height} the detail pane overflows"
         );
     }
@@ -908,7 +915,7 @@ fn trashed_keys_are_marked() {
         key.state = State::Trashed;
     });
 
-    assert!(render(&model).contains("trashed"));
+    assert!(render(&model).contains("TRASHED"));
 }
 
 /// A paste is never a sequence of commands: in the list it is dropped, so
@@ -1150,8 +1157,396 @@ fn large_lists() {
     assert!(!clean.contains('\u{1b}'));
 }
 
+/// Text from outside protui reaches the screen only through the paths that
+/// sanitise it: a key's comment through `set_public_key`, and anything typed or
+/// pasted through `TextInput`. Titles, vault names and the agent's fields are
+/// sanitised where they enter, in `passcli`, and tested there.
+#[test]
+fn no_screen_draws_control_or_bidi_characters() {
+    const PAYLOAD: &str = "\u{1b}]52;c;cHduZWQ=\u{7}\u{202e}\u{2066}\u{1b}[2J\u{2028}\u{85}";
+
+    let type_payload = |model: &mut Model| {
+        for c in PAYLOAD.chars() {
+            press(model, &[char_key(c)]);
+        }
+        model.update(Message::Paste(PAYLOAD.to_owned()));
+    };
+    let tab = KeyEvent::from(KeyCode::Tab);
+
+    let mut screens: Vec<(&str, Model)> = Vec::new();
+    let base = || {
+        let mut model = loaded(120, 40);
+        let hostile = format!("{TEST_PUBLIC_KEY} {PAYLOAD}");
+        deliver_public_key(&mut model, "share-1", "item-1", &hostile);
+        model
+    };
+    screens.push(("list", base()));
+
+    let mut filter = base();
+    press(&mut filter, &[char_key('/')]);
+    type_payload(&mut filter);
+    screens.push(("filter", filter));
+
+    let mut form = base();
+    press(&mut form, &[char_key('n')]);
+    type_payload(&mut form);
+    press(&mut form, &[tab, tab, tab]);
+    type_payload(&mut form);
+    press(&mut form, &[tab]);
+    type_payload(&mut form);
+    screens.push(("new key", form));
+
+    let mut trash = base();
+    press(&mut trash, &[char_key('d')]);
+    screens.push(("trash", trash));
+
+    let mut delete = base();
+    press(
+        &mut delete,
+        &[KeyEvent::new(KeyCode::Char('D'), KeyModifiers::SHIFT)],
+    );
+    type_payload(&mut delete);
+    screens.push(("delete", delete));
+
+    let mut agent = base();
+    press(&mut agent, &[char_key('a')]);
+    screens.push(("agent", agent));
+
+    for (name, model) in screens {
+        let screen = render(&model);
+        let found = screen
+            .chars()
+            .find(|&c| c != '\n' && !crate::keys::is_displayable(c));
+        assert_eq!(found, None, "{name} draws {found:?}:\n{screen}");
+    }
+}
+
+/// The agent chip uses the status protui already has, and only says the agent
+/// is up when it is.
+#[test]
+fn the_header_shows_the_agent_only_while_it_runs() {
+    let mut model = loaded(120, 40);
+    assert!(!render(&model).contains("AGENT UP"));
+
+    model.update(Message::AgentStatusLoaded(Ok(running_agent())));
+
+    assert!(render(&model).contains("AGENT UP"));
+}
+
+/// Red belongs to the permanent delete alone. Outside its dialog, the only red
+/// on screen is the `D` keycap in the footer.
+#[test]
+fn red_appears_only_for_the_permanent_delete() {
+    for theme in themes() {
+        let screens = screens(theme, 120, 38);
+        for (name, model) in screens
+            .iter()
+            .filter(|(name, _)| !name.starts_with("delete"))
+        {
+            let buffer = render_buffer(model);
+            let footer = model.height - FOOTER_ROWS - model.help_rows();
+
+            for (index, cell) in buffer.content.iter().enumerate() {
+                let (x, y) = buffer.pos_of(index);
+                let red = [cell.fg, cell.bg]
+                    .iter()
+                    .any(|&color| color == theme.red || color == theme.danger);
+                let keycap = y >= footer && matches!(cell.symbol(), " " | "D");
+                assert!(!red || keycap, "{name}: red at ({x}, {y}) {cell:?}");
+            }
+        }
+    }
+}
+
+/// A coloured fill always carries `#111111` text, in either theme. Shadows are
+/// not text, and flip to cream on a dark terminal like the borders do.
+#[test]
+fn coloured_fills_carry_ink_text() {
+    for theme in themes() {
+        let fills = [
+            theme.yellow,
+            theme.violet,
+            theme.mint,
+            theme.pink,
+            theme.orange,
+            theme.red,
+        ];
+        for (width, height) in [(120, 38), (80, 24)] {
+            for (name, model) in screens(theme, width, height) {
+                let buffer = render_buffer(&model);
+                for (index, cell) in buffer.content.iter().enumerate() {
+                    let shadow = [" ", GLYPH_LOWER_HALF, GLYPH_UPPER_HALF].contains(&cell.symbol());
+                    if fills.contains(&cell.bg) && !shadow {
+                        assert_eq!(
+                            cell.fg,
+                            Color::Rgb(0x11, 0x11, 0x11),
+                            "{name} {width}x{height}: {cell:?} at {:?}",
+                            buffer.pos_of(index)
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Every screen at the design's size and at a common small one. Each snapshot
+/// holds the characters once, then the colours of both themes, so a change to
+/// either shows up.
+#[test]
+fn screens_match_their_snapshots() {
+    let [light, dark] = themes();
+    for (width, height) in [(120, 38), (80, 24)] {
+        let pairs = screens(light, width, height)
+            .into_iter()
+            .zip(screens(dark, width, height));
+        for ((name, light), (_, dark)) in pairs {
+            insta::assert_snapshot!(format!("{name}_{width}x{height}"), snapshot(&light, &dark));
+        }
+    }
+}
+
+fn themes() -> [Theme; 2] {
+    [
+        Theme::new(Background::Light, ColorDepth::TrueColor),
+        Theme::new(Background::Dark, ColorDepth::TrueColor),
+    ]
+}
+
+fn running_agent() -> AgentStatus {
+    AgentStatus {
+        state: AgentState::Running,
+        detail: "running".to_owned(),
+        pid: "48213".to_owned(),
+        socket: "/Users/me/.proton-pass/ssh-agent.sock".to_owned(),
+    }
+}
+
+/// A model like the design's reference screens: keys of each algorithm
+/// across three vaults, every public key read, the agent running, and the
+/// second key selected.
+fn showcase(theme: Theme, width: u16, height: u16) -> Model {
+    let vaults = vec![
+        vault("Infra", "s-infra"),
+        vault("Personal", "s-personal"),
+        vault("Work", "s-work"),
+    ];
+    let keys = [
+        ("s-work", "Work", "deploy-ci", CI_PUBLIC_KEY),
+        (
+            "s-personal",
+            "Personal",
+            "github-personal",
+            LAPTOP_PUBLIC_KEY,
+        ),
+        ("s-work", "Work", "gitlab-work", TEST_PUBLIC_KEY),
+        ("s-infra", "Infra", "hetzner-vps", RSA4096_PUBLIC_KEY),
+        ("s-personal", "Personal", "old-macbook", PREVIEW_RSA),
+    ];
+
+    let mut model = Model::new(theme);
+    model.update(Message::Resize { width, height });
+    model.update(Message::VaultsLoaded {
+        generation: 0,
+        result: Ok(vaults.clone()),
+    });
+    for vault in vaults {
+        let listed = keys
+            .iter()
+            .filter(|(share_id, ..)| *share_id == vault.share_id.as_str())
+            .map(|&(share_id, name, title, _)| key(share_id, name, title, title))
+            .collect();
+        model.update(Message::KeysLoaded {
+            generation: 0,
+            vault,
+            result: Ok(listed),
+        });
+    }
+    for (share_id, _, title, public_key) in keys {
+        deliver_public_key(&mut model, share_id, title, public_key);
+    }
+    model.update(Message::AgentStatusLoaded(Ok(running_agent())));
+    press(&mut model, &[char_key('j')]);
+    model
+}
+
+/// Every screen and state worth looking at, built the way a user reaches it.
+fn screens(theme: Theme, width: u16, height: u16) -> Vec<(&'static str, Model)> {
+    let list = || showcase(theme, width, height);
+    let typed = |model: &mut Model, text: &str| {
+        for c in text.chars() {
+            press(model, &[char_key(c)]);
+        }
+    };
+    let fresh = || {
+        let mut model = Model::new(theme);
+        model.update(Message::Resize { width, height });
+        model
+    };
+    let mut screens = Vec::new();
+
+    let mut copied = list();
+    copied.update(Message::Copied {
+        title: "github-personal".to_owned(),
+        result: Ok(()),
+    });
+    screens.push(("list", copied));
+
+    let mut filtering = list();
+    press(&mut filtering, &[char_key('/')]);
+    typed(&mut filtering, "git");
+    screens.push(("filter_typing", filtering));
+
+    let mut filtered = list();
+    press(&mut filtered, &[char_key('/')]);
+    typed(&mut filtered, "git");
+    press(&mut filtered, &[KeyEvent::from(KeyCode::Enter)]);
+    screens.push(("filter_applied", filtered));
+
+    let mut help = list();
+    press(&mut help, &[char_key('?')]);
+    screens.push(("help", help));
+
+    let mut warned = list();
+    let _ = warned.notify(
+        "No public key loaded for this item yet.".to_owned(),
+        Tone::Warn,
+    );
+    screens.push(("status_warn", warned));
+
+    let mut failed = list();
+    let _ = failed.notify(
+        "Clipboard unavailable: no clipboard tool found".to_owned(),
+        Tone::Error,
+    );
+    screens.push(("status_error", failed));
+
+    let mut new = list();
+    press(&mut new, &[char_key('n')]);
+    typed(&mut new, "staging-bastion");
+    screens.push(("new_key", new));
+
+    let mut trash = list();
+    press(&mut trash, &[char_key('d')]);
+    screens.push(("trash", trash));
+
+    let shift_d = KeyEvent::new(KeyCode::Char('D'), KeyModifiers::SHIFT);
+    let mut delete = list();
+    press(&mut delete, &[shift_d]);
+    typed(&mut delete, "github-pers");
+    screens.push(("delete", delete));
+
+    let mut matched = list();
+    press(&mut matched, &[shift_d]);
+    typed(&mut matched, "github-personal");
+    screens.push(("delete_matched", matched));
+
+    let mut running = list();
+    press(&mut running, &[char_key('a')]);
+    running.update(Message::AgentStatusLoaded(Ok(running_agent())));
+    screens.push(("agent_running", running));
+
+    let mut stopped = list();
+    press(&mut stopped, &[char_key('a')]);
+    stopped.update(Message::AgentStatusLoaded(Ok(AgentStatus {
+        state: AgentState::Stopped,
+        ..AgentStatus::default()
+    })));
+    screens.push(("agent_stopped", stopped));
+
+    screens.push(("loading", fresh()));
+
+    let mut empty = fresh();
+    empty.update(Message::VaultsLoaded {
+        generation: 0,
+        result: Ok(Vec::new()),
+    });
+    screens.push(("empty", empty));
+
+    let mut error = fresh();
+    error.update(Message::VaultsLoaded {
+        generation: 0,
+        result: Err(CommandError::with_stderr(
+            "vault list",
+            "session expired; run pass-cli login",
+        )),
+    });
+    screens.push(("error", error));
+
+    screens
+}
+
+/// The screen as text, then each theme's colours as runs along each row.
+fn snapshot(light: &Model, dark: &Model) -> String {
+    let light = render_buffer(light);
+    let dark = render_buffer(dark);
+    let text = |buffer: &Buffer| -> Vec<String> {
+        (0..buffer.area.height)
+            .map(|y| {
+                let row: String = (0..buffer.area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect();
+                row.trim_end().to_owned()
+            })
+            .collect()
+    };
+    assert_eq!(
+        text(&light),
+        text(&dark),
+        "the themes differ in more than colour"
+    );
+
+    let mut sections = vec![text(&light).join("\n")];
+    for (name, buffer) in [("light", &light), ("dark", &dark)] {
+        let mut lines = vec![name.to_owned()];
+        lines.extend((0..buffer.area.height).filter_map(|y| {
+            let runs = style_runs(buffer, y);
+            (!runs.is_empty()).then(|| format!("{y:>2} {runs}"))
+        }));
+        sections.push(lines.join("\n"));
+    }
+    sections.join("\n\n")
+}
+
+/// One row's styled stretches, as `first-last fg/bg` plus `b` for bold and `r`
+/// for reverse. Unstyled stretches are left out.
+fn style_runs(buffer: &Buffer, y: u16) -> String {
+    let style = |cell: &Cell| (cell.fg, cell.bg, cell.modifier);
+    let width = buffer.area.width;
+    let mut runs = Vec::new();
+    let mut start = 0;
+
+    for x in 1..=width {
+        if x < width && style(&buffer[(x, y)]) == style(&buffer[(start, y)]) {
+            continue;
+        }
+        let cell = &buffer[(start, y)];
+        if style(cell) != (Color::Reset, Color::Reset, Modifier::empty()) {
+            runs.push(format!("{start}-{} {}", x - 1, describe(cell)));
+        }
+        start = x;
+    }
+    runs.join(" | ")
+}
+
+fn describe(cell: &Cell) -> String {
+    let color = |color: Color| match color {
+        Color::Rgb(red, green, blue) => format!("{red:02x}{green:02x}{blue:02x}"),
+        Color::Reset => "-".to_owned(),
+        other => format!("{other:?}"),
+    };
+    let mut description = format!("{}/{}", color(cell.fg), color(cell.bg));
+    if cell.modifier.contains(Modifier::BOLD) {
+        description.push_str(" b");
+    }
+    if cell.modifier.contains(Modifier::REVERSED) {
+        description.push_str(" r");
+    }
+    description
+}
+
 /// Prints every screen with colour, for eyeballing the layout against a light
-/// and a dark terminal:
+/// and a dark terminal, at the design's size and at 80×24:
 ///
 /// ```sh
 /// cargo test preview -- --ignored --nocapture
@@ -1166,73 +1561,12 @@ fn preview() {
         Background::Dark
     };
     let theme = Theme::new(background, ColorDepth::TrueColor);
-    let vaults = test_vaults();
 
-    let mut model = Model::new(theme);
-    model.update(Message::Resize {
-        width: 118,
-        height: 34,
-    });
-    model.update(Message::VaultsLoaded {
-        generation: 0,
-        result: Ok(vaults.clone()),
-    });
-    model.update(Message::KeysLoaded {
-        generation: 0,
-        vault: vaults[0].clone(),
-        result: Ok(vec![
-            key("share-1", "Personal", "i1", "laptop"),
-            key("share-1", "Personal", "i2", "deploy key"),
-        ]),
-    });
-    model.update(Message::KeysLoaded {
-        generation: 0,
-        vault: vaults[1].clone(),
-        result: Ok(vec![key("share-2", "Work", "i3", "bastion jump host")]),
-    });
-    deliver_public_key(&mut model, "share-1", "i1", TEST_PUBLIC_KEY);
-    deliver_public_key(&mut model, "share-1", "i2", PREVIEW_RSA);
-    model.inflight = 0;
-
-    show("LIST + DETAIL", &model);
-
-    let mut form = CreateForm::new(vaults.clone(), None);
-    form.focus(Field::Vault);
-    model.mode = Mode::Create(form);
-    show("CREATE", &model);
-
-    model.mode = Mode::ConfirmTrash(key("share-1", "Personal", "i1", "laptop"));
-    show("TRASH", &model);
-
-    model.mode = Mode::ConfirmDelete(key("share-1", "Personal", "i1", "laptop"));
-    show("DELETE", &model);
-
-    model.mode = Mode::Agent;
-    model.agent = AgentStatus {
-        state: AgentState::Running,
-        detail: "running".to_owned(),
-        pid: "54321".to_owned(),
-        socket: "/Users/example/.proton-pass/ssh-agent.sock".to_owned(),
-    };
-    show("AGENT", &model);
-
-    model.mode = Mode::List;
-    model.update(Message::Resize {
-        width: 60,
-        height: 20,
-    });
-    show("NARROW (60 columns, no detail pane)", &model);
-
-    let mut empty = Model::new(theme);
-    empty.update(Message::Resize {
-        width: 118,
-        height: 20,
-    });
-    empty.update(Message::VaultsLoaded {
-        generation: 0,
-        result: Ok(Vec::new()),
-    });
-    show("EMPTY", &empty);
+    for (width, height) in [(120, 38), (80, 24)] {
+        for (name, model) in screens(theme, width, height) {
+            show(&format!("{name} {width}x{height}"), &model);
+        }
+    }
 }
 
 /// Prints a rendered screen with its colours as ANSI escapes.
@@ -1251,6 +1585,9 @@ fn show(name: &str, model: &Model) {
                 screen.push_str(&sgr(cell.bg, 48));
                 if cell.modifier.contains(Modifier::BOLD) {
                     screen.push_str("\u{1b}[1m");
+                }
+                if cell.modifier.contains(Modifier::REVERSED) {
+                    screen.push_str("\u{1b}[7m");
                 }
                 last = Some(style);
             }

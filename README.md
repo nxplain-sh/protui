@@ -87,6 +87,15 @@ Keys from every vault are listed together, with the vault shown per row.
 `Ctrl-e` and `Ctrl-y` scroll the detail pane when a key is too long to fit,
 without moving the cursor — as in vim.
 
+### Colours
+
+protui asks the terminal for its background and picks a light or dark palette
+to match. Where the terminal does not answer — tmux or screen without
+passthrough, some SSH setups — it assumes dark; set `PROTUI_THEME=light` or
+`PROTUI_THEME=dark` to choose. Without truecolor (`COLORTERM=truecolor`) it
+uses the nearest 256 colours, and [`NO_COLOR`](https://no-color.org) turns
+colour off.
+
 ### Copying needs a clipboard
 
 On macOS this works out of the box. On Linux, copying shells out to `xclip`,

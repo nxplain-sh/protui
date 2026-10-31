@@ -64,6 +64,11 @@ pending a first tagged version.
   `r` twice in quick succession no longer lists keys twice.
 - Colours fall back to the 256-colour palette on terminals without 24-bit
   colour, and `NO_COLOR` is honoured.
+- The TUI is restyled as neobrutalist: heavy borders, hard shadows, a filled
+  header and selection, a colour chip per key algorithm, and red kept for the
+  permanent delete alone. `PROTUI_THEME=light|dark` overrides the detected
+  background. Keys and behaviour are unchanged. See
+  [the decision record](docs/adr/0015-restyle-the-tui-as-neobrutalist.md).
 
 ### Security
 

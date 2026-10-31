@@ -151,7 +151,7 @@ pub const TRASH: Binding = Binding {
 pub const DELETE: Binding = Binding {
     keys: &[Key::Char('D')],
     help_key: "D",
-    help: "delete!",
+    help: "delete",
 };
 pub const AGENT: Binding = Binding {
     keys: &[Key::Char('a')],
@@ -161,7 +161,7 @@ pub const AGENT: Binding = Binding {
 pub const REFRESH: Binding = Binding {
     keys: &[Key::Char('r')],
     help_key: "r",
-    help: "refresh",
+    help: "reload",
 };
 pub const HELP: Binding = Binding {
     keys: &[Key::Char('?')],
@@ -174,9 +174,31 @@ pub const QUIT: Binding = Binding {
     help: "quit",
 };
 
-/// The single-line help bar shown under the list.
-pub const SHORT_HELP: [&Binding; 9] = [
-    &UP, &DOWN, &FILTER, &COPY, &NEW, &TRASH, &AGENT, &HELP, &QUIT,
+/// A key and what it does, as the footer's key bar shows them.
+pub type Hint = (&'static str, &'static str);
+
+/// The footer's key bar under the list. Movement is folded into one hint, and
+/// `?` names what it opens rather than itself.
+pub const SHORT_HELP: [Hint; 10] = [
+    ("j/k", "move"),
+    (FILTER.help_key, FILTER.help),
+    (COPY.help_key, "copy"),
+    (NEW.help_key, NEW.help),
+    (TRASH.help_key, TRASH.help),
+    (DELETE.help_key, DELETE.help),
+    (AGENT.help_key, AGENT.help),
+    (REFRESH.help_key, REFRESH.help),
+    (HELP.help_key, "more"),
+    (QUIT.help_key, QUIT.help),
+];
+
+/// The key bar while there are no keys to act on.
+pub const EMPTY_HELP: [Hint; 5] = [
+    (NEW.help_key, NEW.help),
+    (AGENT.help_key, AGENT.help),
+    (REFRESH.help_key, REFRESH.help),
+    (HELP.help_key, "more"),
+    (QUIT.help_key, QUIT.help),
 ];
 
 /// The expanded help, toggled with `?`, as columns.

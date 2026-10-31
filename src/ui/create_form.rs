@@ -4,22 +4,27 @@
 //! environment only — never argv, never disk. See `docs/schema.md` §6.1.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::layout::Position;
-use ratatui::text::{Line, Span};
+use ratatui::buffer::Buffer;
+use ratatui::layout::{Position, Rect};
+use ratatui::style::Style;
+use ratatui::text::Line;
 
 use crate::keys::{ShareId, Vault};
 use crate::passcli::{GenerateRequest, KeyType};
+use crate::ui::draw;
+use crate::ui::text;
 use crate::ui::text_input::{Echo, TextInput};
-use crate::ui::theme::{GLYPH_RULE, GLYPH_SELECTED, GLYPH_WARN, Theme};
+use crate::ui::theme::{GLYPH_NEXT, GLYPH_NOTE, GLYPH_PREVIOUS, GLYPH_WARN, HEAVY, LIGHT, Theme};
 
-/// The width of the input column, so every field's underline lines up
-/// regardless of how much has been typed into it.
-const FIELD_WIDTH: usize = 34;
-const LABEL_WIDTH: usize = 12;
-const GUTTER_WIDTH: usize = 2;
-/// Every value sits two columns into its field, where a focused choice draws
-/// its left arrow.
-const VALUE_INDENT: usize = 2;
+/// The label column, which every input lines up after.
+const LABEL_WIDTH: u16 = 14;
+/// A boxed field's rows: the box, then a row its shadow falls into.
+const FIELD_ROWS: u16 = 4;
+/// What the form says under its fields.
+const NOTES: [&str; 2] = [
+    "The comment is stored inside the public key itself.",
+    "A passphrase goes via the environment, never the command line.",
+];
 
 /// A form field, in tab order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,12 +98,6 @@ impl CreateForm {
             key_type_index: 0,
             error: None,
         }
-    }
-
-    /// Moves focus to `field`, as the preview does to show a choice.
-    #[cfg(test)]
-    pub fn focus(&mut self, field: Field) {
-        self.focus = field;
     }
 
     /// Handles a key press, returning the request once the form is submitted.
@@ -190,120 +189,197 @@ impl CreateForm {
         })
     }
 
-    /// Renders the form's body, and where the terminal cursor belongs within
-    /// it, relative to the body's first line, if a text field has focus.
+    /// The rows the form's body takes: boxed fields, or single-row ones when
+    /// `compact`, for a terminal too short for the boxes.
     #[must_use]
-    pub fn render(&self, theme: &Theme) -> (Vec<Line<'static>>, Option<Position>) {
-        let key_type = KeyType::ALL[self.key_type_index].as_str();
+    pub fn height(&self, compact: bool) -> u16 {
+        let fields = Field::ORDER.len() as u16;
+        let rows = if compact {
+            // A blank row between fields, and one before the notes.
+            fields * 2
+        } else {
+            fields * FIELD_ROWS
+        };
+        let error = if self.error.is_some() { 2 } else { 0 };
+
+        rows + NOTES.len() as u16 + error
+    }
+
+    /// Draws the form into `area` and returns where the terminal cursor
+    /// belongs, if a text field has focus.
+    pub fn render(
+        &self,
+        buf: &mut Buffer,
+        area: Rect,
+        compact: bool,
+        theme: &Theme,
+    ) -> Option<Position> {
+        let input_width = area.width.saturating_sub(LABEL_WIDTH + 1);
+        let mut cursor = None;
+        let mut y = area.y;
+
+        for field in Field::ORDER {
+            let focused = field == self.focus;
+            let input = Rect::new(
+                area.x + LABEL_WIDTH,
+                y,
+                input_width,
+                if compact { 1 } else { 3 },
+            );
+            let middle = input.y + input.height / 2;
+            Self::label(buf, area.x, middle, field, focused, theme);
+
+            let typed = match field {
+                Field::Title => Some(&self.title),
+                Field::Comment => Some(&self.comment),
+                Field::Passphrase => Some(&self.passphrase),
+                Field::Vault => {
+                    self.vault_box(buf, input, focused, theme);
+                    None
+                }
+                Field::KeyType => {
+                    self.key_types(buf, input.x, middle, area.right(), theme);
+                    None
+                }
+            };
+            if let Some(typed) = typed {
+                cursor = cursor.or(Self::text_box(buf, input, typed, focused, theme));
+            }
+            y += if compact { 2 } else { FIELD_ROWS };
+        }
+
+        for note in NOTES {
+            let note = format!("{GLYPH_NOTE} {note}");
+            draw::text(buf, area.x, y, &note, theme.text(theme.muted), area.width);
+            y += 1;
+        }
+
+        if let Some(error) = self.error {
+            y += 1;
+            let chip = draw::chip(buf, area.x, y, GLYPH_WARN, theme.chip(theme.orange));
+            let room = area.width.saturating_sub(chip + 1);
+            draw::text(
+                buf,
+                area.x + chip + 1,
+                y,
+                error,
+                theme.bold(theme.ink),
+                room,
+            );
+        }
+
+        cursor
+    }
+
+    /// The field's name. Focus fills it yellow, one column wider each side, so
+    /// the text stays in line with the labels around it.
+    fn label(buf: &mut Buffer, x: u16, y: u16, field: Field, focused: bool, theme: &Theme) {
+        let label = match field {
+            Field::Title => "TITLE",
+            Field::Vault => "VAULT",
+            Field::KeyType => "TYPE",
+            Field::Comment => "COMMENT",
+            Field::Passphrase => "PASSPHRASE",
+        };
+
+        if focused {
+            draw::chip(buf, x.saturating_sub(1), y, label, theme.chip(theme.yellow));
+        } else {
+            draw::text(buf, x, y, label, theme.bold(theme.muted), LABEL_WIDTH);
+        }
+    }
+
+    /// Draws an input's frame and returns where its text goes and how wide it
+    /// may be. A one-row input is a `code`-filled well instead of a box.
+    fn frame(buf: &mut Buffer, area: Rect, focused: bool, theme: &Theme) -> (u16, u16, u16) {
+        if area.height == 1 {
+            draw::fill(buf, area, Style::new().bg(theme.code));
+            return (area.x + 1, area.y, area.width.saturating_sub(2));
+        }
+
+        let glyphs = if focused { &HEAVY } else { &LIGHT };
+        draw::outline(buf, area, glyphs, theme.text(theme.ink));
+        if focused {
+            draw::shadow(buf, area, 1, theme.shadow);
+        }
+        (area.x + 2, area.y + 1, area.width.saturating_sub(4))
+    }
+
+    /// A text field: its value, or its placeholder, and when focused a solid
+    /// cursor cell, whose position is returned.
+    fn text_box(
+        buf: &mut Buffer,
+        area: Rect,
+        input: &TextInput,
+        focused: bool,
+        theme: &Theme,
+    ) -> Option<Position> {
+        let (x, y, width) = Self::frame(buf, area, focused, theme);
+        let style = if focused {
+            theme.bold(theme.ink)
+        } else {
+            theme.text(theme.ink)
+        };
+        let (spans, column) = input.render(style, theme.text(theme.faint), usize::from(width));
+        draw::line(buf, x, y, &Line::from(spans), width);
+
+        if !focused {
+            return None;
+        }
+        let position = Position::new(x + column, y);
+        draw::restyle(buf, position.x, position.y, theme.cursor());
+        Some(position)
+    }
+
+    /// The vault, between the arrows that cycle it.
+    fn vault_box(&self, buf: &mut Buffer, area: Rect, focused: bool, theme: &Theme) {
         let vault = self
             .vaults
             .get(self.vault_index)
             .map_or("(none)", |vault| vault.name.as_str());
-
-        let mut lines = Vec::new();
-        let mut cursor = None;
-
-        for field in Field::ORDER {
-            let (label, value) = match field {
-                Field::Title => ("Title", Self::input_spans(&self.title, theme)),
-                Field::Vault => ("Vault", (self.choice(field, vault, theme), 0)),
-                Field::KeyType => ("Type", (self.choice(field, key_type, theme), 0)),
-                Field::Comment => ("Comment", Self::input_spans(&self.comment, theme)),
-                Field::Passphrase => ("Passphrase", Self::input_spans(&self.passphrase, theme)),
-            };
-            let (spans, column) = value;
-
-            if field == self.focus && !field.is_choice() {
-                let column = GUTTER_WIDTH + LABEL_WIDTH + VALUE_INDENT + usize::from(column);
-                cursor = Some(Position::new(column as u16, lines.len() as u16));
-            }
-            lines.extend(self.row(field, label, spans, theme));
-        }
-
-        lines.push(Line::default());
-        lines.push(Line::styled(
-            "The comment is stored inside the public key itself.",
-            theme.faint(),
-        ));
-        lines.push(Line::styled(
-            "A passphrase goes via the environment, never the command line.",
-            theme.faint(),
-        ));
-
-        if let Some(error) = self.error {
-            lines.push(Line::default());
-            lines.push(Line::styled(
-                format!("{GLYPH_WARN}  {error}"),
-                theme.error(),
-            ));
-        }
-
-        (lines, cursor)
-    }
-
-    fn input_spans(input: &TextInput, theme: &Theme) -> (Vec<Span<'static>>, u16) {
-        let (mut spans, cursor) =
-            input.render(theme.text(), theme.faint(), FIELD_WIDTH - VALUE_INDENT);
-        spans.insert(0, Span::raw(" ".repeat(VALUE_INDENT)));
-        (spans, cursor)
-    }
-
-    /// Renders a cycling choice. The arrows appear only on the focused field,
-    /// since they are an affordance for the keys that are live right now.
-    fn choice(&self, field: Field, value: &str, theme: &Theme) -> Vec<Span<'static>> {
-        if self.focus == field {
-            vec![
-                Span::styled("‹ ", theme.accent()),
-                Span::styled(value.to_owned(), theme.text()),
-                Span::styled(" ›", theme.accent()),
-            ]
+        let (x, y, width) = Self::frame(buf, area, focused, theme);
+        let style = if focused {
+            theme.bold(theme.ink)
         } else {
-            vec![
-                Span::raw(" ".repeat(VALUE_INDENT)),
-                Span::styled(value.to_owned(), theme.muted()),
-            ]
-        }
-    }
-
-    /// Renders one labelled field over an underline. The focused row is marked
-    /// with an accent bar in the gutter and an accent underline, so focus is
-    /// visible from the shape of the row rather than from the cursor alone.
-    fn row(
-        &self,
-        field: Field,
-        label: &'static str,
-        value: Vec<Span<'static>>,
-        theme: &Theme,
-    ) -> [Line<'static>; 2] {
-        let focused = self.focus == field;
-
-        let (gutter, label_style, underline) = if focused {
-            (
-                Span::styled(format!("{GLYPH_SELECTED} "), theme.accent()),
-                theme.wordmark(),
-                theme.accent_dim(),
-            )
-        } else {
-            (
-                Span::raw(" ".repeat(GUTTER_WIDTH)),
-                theme.label(),
-                theme.rule(),
-            )
+            theme.text(theme.ink)
         };
+        let arrows = theme.text(theme.faint);
 
-        let mut head = vec![
-            gutter,
-            Span::styled(format!("{label:<LABEL_WIDTH$}"), label_style),
-        ];
-        head.extend(value);
+        let room = width.saturating_sub(4);
+        draw::text(buf, x, y, GLYPH_PREVIOUS, arrows, width);
+        draw::text(
+            buf,
+            x + 2,
+            y,
+            &text::truncate(vault, usize::from(room)),
+            style,
+            room,
+        );
+        if width > 4 {
+            draw::text(buf, x + width - 1, y, GLYPH_NEXT, arrows, 1);
+        }
+    }
 
-        [
-            Line::from(head),
-            Line::from(vec![
-                Span::raw(" ".repeat(GUTTER_WIDTH + LABEL_WIDTH)),
-                Span::styled(GLYPH_RULE.repeat(FIELD_WIDTH), underline),
-            ]),
-        ]
+    /// The key types as a segmented row, the chosen one filled.
+    fn key_types(&self, buf: &mut Buffer, x: u16, y: u16, right: u16, theme: &Theme) {
+        let mut x = x;
+        for (index, key_type) in KeyType::ALL.iter().enumerate() {
+            let style = if index == self.key_type_index {
+                theme.chip(theme.mint)
+            } else {
+                Style::new().fg(theme.ink).bg(theme.code)
+            };
+            let segment = format!("  {}  ", key_type.as_str().to_uppercase());
+            x = draw::text(buf, x, y, &segment, style, right.saturating_sub(x)) + 1;
+        }
+        draw::text(
+            buf,
+            x + 1,
+            y,
+            "←/→",
+            theme.text(theme.faint),
+            right.saturating_sub(x + 1),
+        );
     }
 }
 
@@ -400,17 +476,34 @@ mod tests {
         assert_eq!(form.error, Some("No vault available."));
     }
 
+    fn render(form: &CreateForm, compact: bool) -> Option<Position> {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 68, form.height(compact)));
+        let area = buf.area;
+        form.render(&mut buf, area, compact, &Theme::default())
+    }
+
     #[test]
     fn the_cursor_sits_in_the_focused_text_field() {
         let mut form = CreateForm::new(vaults(), None);
         type_text(&mut form, "ab");
 
-        let (_, cursor) = form.render(&Theme::default());
-        // Gutter, label and indent, then two characters typed.
-        assert_eq!(cursor, Some(Position::new(18, 0)));
+        // The label column, the box's border and a space, then two
+        // characters typed, on the box's middle row.
+        assert_eq!(render(&form, false), Some(Position::new(18, 1)));
+        // The well has no border, only a column of padding.
+        assert_eq!(render(&form, true), Some(Position::new(17, 0)));
 
         press(&mut form, KeyCode::Tab);
-        let (_, cursor) = form.render(&Theme::default());
-        assert_eq!(cursor, None, "a choice has no text cursor");
+        assert_eq!(render(&form, false), None, "a choice has no text cursor");
+    }
+
+    #[test]
+    fn the_form_fits_the_height_it_reports() {
+        let mut form = CreateForm::new(vaults(), None);
+        press(&mut form, KeyCode::Enter);
+        assert!(form.error.is_some());
+
+        assert_eq!(form.height(false), 24);
+        assert_eq!(form.height(true), 14);
     }
 }

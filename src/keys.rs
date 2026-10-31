@@ -10,8 +10,8 @@
 //! material never reaches this module.
 
 pub use civil_date_time::CivilDateTime;
-pub use key::{ItemId, ItemRef, Key, ShareId, State, Vault};
-pub use sanitize::sanitize;
+pub use key::{Algorithm, ItemId, ItemRef, Key, ShareId, State, Vault};
+pub use sanitize::{is_displayable, sanitize};
 
 mod civil_date_time;
 mod key;

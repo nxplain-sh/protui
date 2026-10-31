@@ -30,6 +30,11 @@ version = "1.54.1"
 default-features = false
 features = ["io-util", "macros", "process", "rt", "signal", "sync", "time"]
 
+[dev-dependencies]
+# Snapshot tests of every screen. Only the core is needed: no diff colours,
+# no YAML or JSON serialisers.
+insta = { version = "1.49.0", default-features = false }
+
 [lints]
 workspace = true
 

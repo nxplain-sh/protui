@@ -8,6 +8,7 @@ pub use runtime::run;
 pub use theme::no_color;
 
 mod create_form;
+mod draw;
 mod key_list;
 mod keymap;
 mod message;

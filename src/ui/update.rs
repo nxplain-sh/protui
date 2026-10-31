@@ -522,7 +522,9 @@ impl Model {
     /// Zero when everything already fits.
     #[must_use]
     pub(super) fn max_detail_offset(&self) -> usize {
-        self.detail_lines().len().saturating_sub(self.body_height())
+        self.detail_lines()
+            .len()
+            .saturating_sub(self.detail_body_height())
     }
 }
 

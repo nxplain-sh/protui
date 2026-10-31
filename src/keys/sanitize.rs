@@ -43,13 +43,23 @@ pub fn sanitize(text: &str) -> String {
             // category, but they still break a single-line field.
             '\t' | '\n' | '\r' | '\u{0b}' | '\u{0c}' | '\u{2028}' | '\u{2029}' => clean.push(' '),
 
-            c if c.is_control() || is_explicit_bidi_control(c) => {}
+            c if !is_displayable(c) => {}
 
             c => clean.push(c),
         }
     }
 
     clean
+}
+
+/// Reports whether `c` can be drawn as it is: not a control character, not a
+/// line or paragraph separator, and not an explicit bidirectional override.
+///
+/// This is the per-character half of [`sanitize`], for text that arrives one
+/// key press at a time.
+#[must_use]
+pub fn is_displayable(c: char) -> bool {
+    !(c.is_control() || matches!(c, '\u{2028}' | '\u{2029}') || is_explicit_bidi_control(c))
 }
 
 /// Consumes the remainder of an escape sequence whose ESC has already been
@@ -217,6 +227,18 @@ mod tests {
                 !is_explicit_bidi_control(c),
                 "bidi control {c:?} survived sanitising"
             );
+        }
+    }
+
+    #[test]
+    fn is_displayable_refuses_what_sanitize_strips() {
+        for c in [
+            '\u{1b}', '\u{7}', '\u{7f}', '\n', '\u{2028}', '\u{202e}', '\u{2066}',
+        ] {
+            assert!(!is_displayable(c), "{c:?} is displayable");
+        }
+        for c in ['a', 'é', '鍵', 'م', ' '] {
+            assert!(is_displayable(c), "{c:?} is not displayable");
         }
     }
 

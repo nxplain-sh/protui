@@ -205,6 +205,32 @@ impl KeyList {
         }
     }
 
+    /// The characters of `key`'s title that the filter matched, as positions
+    /// in characters from the start, for highlighting. Empty without a filter.
+    #[must_use]
+    pub fn title_matches(&self, key: &Key) -> Vec<usize> {
+        let pattern = self.filter.value();
+        if pattern.is_empty() {
+            return Vec::new();
+        }
+
+        // The title leads the text the filter matches, so the positions that
+        // fall within its length are in the title.
+        let title_length = key.title.chars().count();
+        let mut positions = Vec::new();
+        let found = fuzzy_match(pattern, &filter_text(key), |index| {
+            if index < title_length {
+                positions.push(index);
+            }
+        });
+
+        if found.is_some() {
+            positions
+        } else {
+            Vec::new()
+        }
+    }
+
     fn selected_identity(&self) -> Option<ItemRef> {
         self.selected().map(Key::item_ref)
     }
@@ -257,12 +283,25 @@ fn filter_text(key: &Key) -> String {
 /// Consecutive matches and matches at the start of a word score higher, as
 /// does matching early, so `lap` ranks "laptop" above "old backup".
 fn fuzzy_score(pattern: &str, text: &str) -> Option<usize> {
+    fuzzy_match(pattern, text, |_| {})
+}
+
+/// [`fuzzy_score`], also reporting each matched character of `text` to
+/// `matched` as its position in characters. The positions mean nothing unless
+/// the whole pattern matches.
+fn fuzzy_match(pattern: &str, text: &str, mut matched: impl FnMut(usize)) -> Option<usize> {
     const MATCH: usize = 1;
     const ADJACENT: usize = 5;
     const WORD_START: usize = 3;
     const EARLY: usize = 10;
 
-    let mut text_chars = text.chars().flat_map(char::to_lowercase).enumerate();
+    // Lowercasing can turn one character into several, so each lowercased
+    // character keeps the position of the one it came from.
+    let mut text_chars = text
+        .chars()
+        .enumerate()
+        .flat_map(|(index, c)| c.to_lowercase().map(move |lower| (index, lower)))
+        .enumerate();
     let mut score = 0;
     let mut last_match: Option<usize> = None;
     // The start of the text counts as the start of a word.
@@ -271,11 +310,12 @@ fn fuzzy_score(pattern: &str, text: &str) -> Option<usize> {
     let wanted_chars = pattern.chars().flat_map(char::to_lowercase);
     for wanted in wanted_chars {
         loop {
-            let (position, c) = text_chars.next()?;
+            let (position, (index, c)) = text_chars.next()?;
             let previous = mem::replace(&mut before, c);
             if c != wanted {
                 continue;
             }
+            matched(index);
 
             score += MATCH;
             match last_match {
@@ -414,6 +454,23 @@ mod tests {
         assert!(fuzzy_score("LPT", "laptop").is_some());
         assert!(fuzzy_score("xyz", "laptop").is_none());
         assert!(fuzzy_score("", "laptop").is_some());
+    }
+
+    #[test]
+    fn title_matches_reports_the_matched_title_characters() {
+        let mut list = KeyList::default();
+        // İ lowercases to two characters, which must not shift what follows.
+        list.extend(vec![key("Servers", "İ laptop")]);
+        let laptop = list.selected().cloned().expect("a key");
+
+        type_filter(&mut list, "lop");
+        assert_eq!(list.title_matches(&laptop), [2, 6, 7]);
+
+        // A match found only in the vault name highlights nothing.
+        list.clear_filter();
+        type_filter(&mut list, "srv");
+        assert_eq!(list.visible_len(), 1);
+        assert_eq!(list.title_matches(&laptop), Vec::<usize>::new());
     }
 
     #[test]

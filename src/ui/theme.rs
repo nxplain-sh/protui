@@ -1,13 +1,13 @@
-//! The palette, the styles built from it, and the glyphs drawn with them.
+//! The palette, the fills and the glyphs the screens are drawn with.
 //!
-//! The palette is one accent against a neutral ramp. The accent is Proton's
-//! violet, which is both on-brand for a Proton Pass client and distinct from
-//! the green/blue most terminal tools default to.
+//! The look is neobrutalist (see `docs/design/protui-design.md` and
+//! `docs/adr/0015-restyle-the-tui-as-neobrutalist.md`): heavy ink borders,
+//! hard shadows, and a few saturated fills that always carry `#111111` text.
+//! There are two themes. Their tokens differ — on a dark terminal, borders and
+//! shadows flip to cream — but the fills are the same in both.
 //!
-//! Every colour is adaptive so the UI stays legible on light and dark
-//! terminals, and each is a hex pair rather than an ANSI index so the two
-//! themes can be tuned independently — the dark variants are lifted and
-//! desaturated, since a colour that reads well on white is muddy on black.
+//! The terminal's own background is the "ground" and is never painted; its
+//! reference colour is used only as the text colour of inverted chips.
 
 use std::env;
 use std::io;
@@ -15,71 +15,115 @@ use std::io;
 use ratatui::style::{Color, Modifier, Style};
 use terminal_colorsaurus::{QueryOptions, ThemeMode};
 
-// Glyphs. Kept to widely-supported code points: box drawing, geometric shapes
-// and arrows all render in the default fonts of common terminals, whereas
-// emoji and Nerd Font glyphs do not.
+// Glyphs. Box drawing, block elements, geometric shapes and arrows render in
+// the default fonts of common terminals; emoji and Nerd Font glyphs do not, so
+// none are used.
 pub const GLYPH_MARK: &str = "◆";
-pub const GLYPH_SELECTED: &str = "▌";
-pub const GLYPH_SEPARATOR: &str = "·";
+pub const GLYPH_POINTER: &str = "▶";
 pub const GLYPH_RUNNING: &str = "●";
 pub const GLYPH_STOPPED: &str = "○";
 pub const GLYPH_DEGRADED: &str = "◐";
-pub const GLYPH_WARN: &str = "!";
+pub const GLYPH_OK: &str = "✓";
 pub const GLYPH_ERROR: &str = "✗";
-pub const GLYPH_RULE: &str = "─";
+pub const GLYPH_WARN: &str = "!";
+pub const GLYPH_PREVIOUS: &str = "‹";
+pub const GLYPH_NEXT: &str = "›";
+pub const GLYPH_SEPARATOR: &str = "·";
+pub const GLYPH_NOTE: &str = "▸";
+pub const GLYPH_UPPER_HALF: &str = "▀";
+pub const GLYPH_LOWER_HALF: &str = "▄";
+pub const GLYPH_FULL: &str = "█";
+pub const GLYPH_THIN_RULE: &str = "─";
 
-/// One colour, as `[red, green, blue]`, tuned separately for each
-/// background.
+/// The pieces of a box outline.
+#[derive(Clone, Copy, Debug)]
+pub struct BoxGlyphs {
+    pub top_left: &'static str,
+    pub horizontal: &'static str,
+    pub top_right: &'static str,
+    pub vertical: &'static str,
+    pub bottom_left: &'static str,
+    pub bottom_right: &'static str,
+    pub tee_left: &'static str,
+    pub tee_right: &'static str,
+}
+
+/// The default outline: panes, dialogs and focused inputs.
+pub const HEAVY: BoxGlyphs = BoxGlyphs {
+    top_left: "┏",
+    horizontal: "━",
+    top_right: "┓",
+    vertical: "┃",
+    bottom_left: "┗",
+    bottom_right: "┛",
+    tee_left: "┣",
+    tee_right: "┫",
+};
+
+/// The outline of an input that does not have focus.
+pub const LIGHT: BoxGlyphs = BoxGlyphs {
+    top_left: "┌",
+    horizontal: "─",
+    top_right: "┐",
+    vertical: "│",
+    bottom_left: "└",
+    bottom_right: "┘",
+    tee_left: "├",
+    tee_right: "┤",
+};
+
+/// One token, as `[red, green, blue]`, for each background.
 #[derive(Clone, Copy)]
-struct Adaptive {
+struct Token {
     light: [u8; 3],
     dark: [u8; 3],
 }
 
-const ACCENT: Adaptive = Adaptive {
-    light: [0x5b, 0x34, 0xe0],
-    dark: [0x9c, 0x82, 0xff],
+const INK: Token = Token {
+    light: [0x11, 0x11, 0x11],
+    dark: [0xf5, 0xf0, 0xe1],
 };
-const ACCENT_DIM: Adaptive = Adaptive {
-    light: [0x8b, 0x6f, 0xef],
-    dark: [0x6a, 0x55, 0xb8],
+const MUTED: Token = Token {
+    light: [0x4f, 0x48, 0x3b],
+    dark: [0xcf, 0xc8, 0xb6],
 };
-// The neutral ramp, brightest to dimmest.
-const TEXT: Adaptive = Adaptive {
-    light: [0x18, 0x18, 0x1b],
-    dark: [0xe8, 0xe8, 0xed],
+const FAINT: Token = Token {
+    light: [0x6b, 0x63, 0x52],
+    dark: [0xa3, 0x9c, 0x8c],
 };
-const MUTED: Adaptive = Adaptive {
-    light: [0x5f, 0x65, 0x70],
-    dark: [0x9a, 0x9a, 0xab],
+const CODE: Token = Token {
+    light: [0xf1, 0xe6, 0xc8],
+    dark: [0x26, 0x26, 0x26],
 };
-const FAINT: Adaptive = Adaptive {
-    light: [0x9c, 0xa3, 0xaf],
-    dark: [0x61, 0x61, 0x6f],
+const DOTS: Token = Token {
+    light: [0xe2, 0xd6, 0xb6],
+    dark: [0x2c, 0x2c, 0x2c],
 };
-const LINE: Adaptive = Adaptive {
-    light: [0xe3, 0xe3, 0xe8],
-    dark: [0x2c, 0x2c, 0x36],
+const DANGER: Token = Token {
+    light: [0xb3, 0x12, 0x1f],
+    dark: [0xff, 0x6b, 0x6b],
 };
-// Backs badges and inline chips.
-const SURFACE: Adaptive = Adaptive {
-    light: [0xf1, 0xee, 0xfd],
-    dark: [0x2a, 0x24, 0x38],
+const BAR_TEXT: Token = Token {
+    light: [0xff, 0xf8, 0xe7],
+    dark: [0x11, 0x11, 0x11],
 };
-const OK: Adaptive = Adaptive {
-    light: [0x15, 0x80, 0x3d],
-    dark: [0x5d, 0xd6, 0x8a],
-};
-const WARN: Adaptive = Adaptive {
-    light: [0xb4, 0x53, 0x09],
-    dark: [0xf0, 0xb4, 0x29],
-};
-const ERROR: Adaptive = Adaptive {
-    light: [0xb9, 0x1c, 0x1c],
-    dark: [0xff, 0x7b, 0x72],
+const GROUND: Token = Token {
+    light: [0xff, 0xf8, 0xe7],
+    dark: [0x14, 0x14, 0x14],
 };
 
-/// The terminal's background, which decides which half of each pair is used.
+// The fills, the same in both themes, and the text every fill carries.
+const FILL_TEXT: [u8; 3] = [0x11, 0x11, 0x11];
+const YELLOW: [u8; 3] = [0xff, 0xd9, 0x3d];
+const VIOLET: [u8; 3] = [0x8c, 0x6b, 0xff];
+const MINT: [u8; 3] = [0x5b, 0xe3, 0xa6];
+const PINK: [u8; 3] = [0xff, 0x7a, 0xb8];
+const ORANGE: [u8; 3] = [0xff, 0xa2, 0x4c];
+const RED: [u8; 3] = [0xff, 0x5a, 0x5a];
+const DISABLED: [u8; 3] = [0xe6, 0xd9, 0xb8];
+const DISABLED_TEXT: [u8; 3] = [0x6b, 0x63, 0x52];
+
+/// The terminal's background, which decides each token's value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Background {
     Light,
@@ -89,7 +133,8 @@ pub enum Background {
 /// How many colours the terminal can show.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorDepth {
-    /// `NO_COLOR` is set: emphasis comes from weight and glyphs alone.
+    /// `NO_COLOR` is set: fills become reverse video, and weight and glyphs
+    /// carry the rest.
     Monochrome,
     /// The xterm 256-colour palette.
     Indexed,
@@ -100,16 +145,40 @@ pub enum ColorDepth {
 /// The resolved palette for one terminal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Theme {
-    accent: Color,
-    accent_dim: Color,
-    text: Color,
-    muted: Color,
-    faint: Color,
-    line: Color,
-    surface: Color,
-    ok: Color,
-    warn: Color,
-    error: Color,
+    pub background: Background,
+    pub depth: ColorDepth,
+
+    /// Body text and every border.
+    pub ink: Color,
+    /// Labels and secondary text.
+    pub muted: Color,
+    /// List summaries, hints and placeholders.
+    pub faint: Color,
+    /// Hard shadows.
+    pub shadow: Color,
+    /// The public-key block, command blocks and cancel buttons.
+    pub code: Color,
+    /// The decorative dots behind a dialog.
+    pub dots: Color,
+    /// Text on the ground for the permanent delete, and nothing else.
+    pub danger: Color,
+    /// The footer key bar's background, and its labels.
+    pub bar: Color,
+    pub bar_text: Color,
+    /// The reference ground, used only as text on an inverted chip.
+    pub ground: Color,
+
+    /// The text every fill carries.
+    pub fill_text: Color,
+    pub yellow: Color,
+    pub violet: Color,
+    pub mint: Color,
+    pub pink: Color,
+    pub orange: Color,
+    /// The permanent delete, and nothing else.
+    pub red: Color,
+    pub disabled: Color,
+    pub disabled_text: Color,
 }
 
 impl Default for Theme {
@@ -124,137 +193,197 @@ impl Theme {
     /// Resolves the palette for a background and colour depth.
     #[must_use]
     pub fn new(background: Background, depth: ColorDepth) -> Self {
-        let resolve = |pair: Adaptive| {
-            let rgb = match background {
-                Background::Light => pair.light,
-                Background::Dark => pair.dark,
-            };
-            let [red, green, blue] = rgb;
-            match depth {
-                ColorDepth::Monochrome => Color::Reset,
-                ColorDepth::Indexed => Color::Indexed(xterm_index(red, green, blue)),
-                ColorDepth::TrueColor => Color::Rgb(red, green, blue),
-            }
+        let color = |[red, green, blue]: [u8; 3]| match depth {
+            ColorDepth::Monochrome => Color::Reset,
+            ColorDepth::Indexed => Color::Indexed(xterm_index(red, green, blue)),
+            ColorDepth::TrueColor => Color::Rgb(red, green, blue),
+        };
+        let token = |token: Token| {
+            color(match background {
+                Background::Light => token.light,
+                Background::Dark => token.dark,
+            })
         };
 
         Self {
-            accent: resolve(ACCENT),
-            accent_dim: resolve(ACCENT_DIM),
-            text: resolve(TEXT),
-            muted: resolve(MUTED),
-            faint: resolve(FAINT),
-            line: resolve(LINE),
-            surface: resolve(SURFACE),
-            ok: resolve(OK),
-            warn: resolve(WARN),
-            error: resolve(ERROR),
+            background,
+            depth,
+            ink: token(INK),
+            muted: token(MUTED),
+            faint: token(FAINT),
+            shadow: token(INK),
+            code: token(CODE),
+            dots: token(DOTS),
+            danger: token(DANGER),
+            bar: token(INK),
+            bar_text: token(BAR_TEXT),
+            ground: token(GROUND),
+            fill_text: color(FILL_TEXT),
+            yellow: color(YELLOW),
+            violet: color(VIOLET),
+            mint: color(MINT),
+            pink: color(PINK),
+            orange: color(ORANGE),
+            red: color(RED),
+            disabled: color(DISABLED),
+            disabled_text: color(DISABLED_TEXT),
         }
     }
 
     /// Inspects the environment and the terminal to choose a palette.
     ///
-    /// The terminal's answer arrives on the same input as key presses, so this
-    /// must run before anything else starts reading it.
+    /// `PROTUI_THEME` wins when set. Otherwise the terminal is asked for its
+    /// background, and its answer arrives on the same input as key presses, so
+    /// this must run before anything else starts reading it.
     #[must_use]
     pub fn detect() -> Self {
         Self::new(detect_background(), detect_depth())
     }
 
-    /// Chooses a palette from the environment alone, assuming a dark
-    /// background, for when the terminal cannot be asked.
+    /// Chooses a palette without asking the terminal: `PROTUI_THEME` if set,
+    /// otherwise dark.
     #[must_use]
     pub fn detect_without_asking() -> Self {
-        Self::new(Background::Dark, detect_depth())
+        Self::new(
+            background_override().unwrap_or(Background::Dark),
+            detect_depth(),
+        )
     }
 
     #[must_use]
-    pub fn accent(&self) -> Style {
-        Style::new().fg(self.accent)
+    pub fn is_dark(&self) -> bool {
+        self.background == Background::Dark
     }
 
     #[must_use]
-    pub fn accent_dim(&self) -> Style {
-        Style::new().fg(self.accent_dim)
+    pub fn is_monochrome(&self) -> bool {
+        self.depth == ColorDepth::Monochrome
     }
 
+    /// Text in `color` on the ground.
     #[must_use]
-    pub fn text(&self) -> Style {
-        Style::new().fg(self.text)
+    #[expect(
+        clippy::unused_self,
+        reason = "a method like the other styles, so every call site reads the same"
+    )]
+    pub fn text(&self, color: Color) -> Style {
+        Style::new().fg(color)
     }
 
+    /// Bold text in `color` on the ground.
     #[must_use]
-    pub fn muted(&self) -> Style {
-        Style::new().fg(self.muted)
+    pub fn bold(&self, color: Color) -> Style {
+        self.text(color).add_modifier(Modifier::BOLD)
     }
 
+    /// A coloured fill, which always carries `#111111` text. Without colour,
+    /// a fill is reverse video.
     #[must_use]
-    pub fn faint(&self) -> Style {
-        Style::new().fg(self.faint)
+    pub fn fill(&self, fill: Color) -> Style {
+        if self.is_monochrome() {
+            Style::new().add_modifier(Modifier::REVERSED)
+        } else {
+            Style::new().fg(self.fill_text).bg(fill)
+        }
     }
 
+    /// A bold fill: chips, keycaps and buttons.
     #[must_use]
-    pub fn ok(&self) -> Style {
-        Style::new().fg(self.ok)
+    pub fn chip(&self, fill: Color) -> Style {
+        self.fill(fill).add_modifier(Modifier::BOLD)
     }
 
+    /// An inverted chip: ground-coloured text on ink.
     #[must_use]
-    pub fn warn(&self) -> Style {
-        Style::new().fg(self.warn)
+    pub fn inverted(&self) -> Style {
+        if self.is_monochrome() {
+            Style::new().add_modifier(Modifier::REVERSED | Modifier::BOLD)
+        } else {
+            Style::new()
+                .fg(self.ground)
+                .bg(self.ink)
+                .add_modifier(Modifier::BOLD)
+        }
     }
 
+    /// A chip of `color` text on `#111111`, the same in both themes: the
+    /// header wordmark, dialog icons and the filter hints.
     #[must_use]
-    pub fn error(&self) -> Style {
-        Style::new().fg(self.error)
+    pub fn on_ink(&self, color: Color) -> Style {
+        if self.is_monochrome() {
+            Style::new().add_modifier(Modifier::REVERSED | Modifier::BOLD)
+        } else {
+            Style::new()
+                .fg(color)
+                .bg(self.fill_text)
+                .add_modifier(Modifier::BOLD)
+        }
     }
 
-    /// The product name in the header. There is no filled banner: a coloured
-    /// block across the top of a terminal reads as chrome, and the list is
-    /// what deserves attention.
+    /// A chip on `code` rather than a colour: cancel buttons, a stopped agent,
+    /// an algorithm with no colour of its own. Its text is the theme's ink,
+    /// since `code` is a shade of the ground, not a fill.
     #[must_use]
-    pub fn wordmark(&self) -> Style {
-        self.accent().add_modifier(Modifier::BOLD)
+    pub fn code_chip(&self) -> Style {
+        Style::new()
+            .fg(self.ink)
+            .bg(self.code)
+            .add_modifier(Modifier::BOLD)
     }
 
-    /// Labels a group inside the detail pane. Uppercase and faint rather than
-    /// bold and bright, so it separates without competing.
+    /// The disabled button's fill and text.
     #[must_use]
-    pub fn section(&self) -> Style {
-        self.faint()
+    pub fn disabled_button(&self) -> Style {
+        if self.is_monochrome() {
+            Style::new()
+        } else {
+            Style::new()
+                .fg(self.disabled_text)
+                .bg(self.disabled)
+                .add_modifier(Modifier::BOLD)
+        }
     }
 
-    /// The left column of a key/value row.
+    /// The solid cell an input's cursor is drawn as.
     #[must_use]
-    pub fn label(&self) -> Style {
-        self.muted()
+    pub fn cursor(&self) -> Style {
+        if self.is_monochrome() {
+            Style::new().add_modifier(Modifier::REVERSED)
+        } else {
+            Style::new().fg(self.ground).bg(self.ink)
+        }
     }
 
-    /// The highlighted row.
+    /// The filter's cursor, which sits on the key bar and so takes the bar's
+    /// colours the other way round.
     #[must_use]
-    pub fn selected(&self) -> Style {
-        self.accent().add_modifier(Modifier::BOLD)
+    pub fn bar_cursor(&self) -> Style {
+        if self.is_monochrome() {
+            Style::new().remove_modifier(Modifier::REVERSED)
+        } else {
+            Style::new().fg(self.bar).bg(self.bar_text)
+        }
     }
 
-    /// An inline chip, used for the key algorithm.
+    /// The backdrop's dots, which should recede. Without colour they are
+    /// dimmed instead.
     #[must_use]
-    pub fn badge(&self) -> Style {
-        self.accent().bg(self.surface)
+    pub fn decoration(&self) -> Style {
+        if self.is_monochrome() {
+            Style::new().add_modifier(Modifier::DIM)
+        } else {
+            Style::new().fg(self.dots)
+        }
     }
 
-    /// A dialog's heading.
+    /// The footer key bar's labels on its background.
     #[must_use]
-    pub fn title(&self) -> Style {
-        self.text().add_modifier(Modifier::BOLD)
-    }
-
-    /// The heading of the dialog for an irreversible action.
-    #[must_use]
-    pub fn danger_title(&self) -> Style {
-        self.error().add_modifier(Modifier::BOLD)
-    }
-
-    #[must_use]
-    pub fn rule(&self) -> Style {
-        Style::new().fg(self.line)
+    pub fn bar_label(&self) -> Style {
+        if self.is_monochrome() {
+            Style::new().add_modifier(Modifier::REVERSED)
+        } else {
+            Style::new().fg(self.bar_text).bg(self.bar)
+        }
     }
 }
 
@@ -275,12 +404,33 @@ fn detect_depth() -> ColorDepth {
     }
 }
 
-/// Asks the terminal for its background, assuming dark if it cannot say:
-/// that is the more common setup, and the one every terminal that does not
-/// answer is likeliest to have.
+/// Reads `PROTUI_THEME`, for terminals that do not answer the background
+/// query — tmux or screen without passthrough, some SSH setups — and for
+/// anyone who wants to choose.
+fn background_override() -> Option<Background> {
+    let value = env::var("PROTUI_THEME").ok()?;
+    parse_background(&value)
+}
+
+fn parse_background(value: &str) -> Option<Background> {
+    if value.eq_ignore_ascii_case("light") {
+        Some(Background::Light)
+    } else if value.eq_ignore_ascii_case("dark") {
+        Some(Background::Dark)
+    } else {
+        None
+    }
+}
+
+/// Chooses the background: `PROTUI_THEME` if set, otherwise the terminal's
+/// answer to a background query, otherwise dark — the more common setup, and
+/// the one a terminal that does not answer is likeliest to have.
 fn detect_background() -> Background {
     use std::io::IsTerminal;
 
+    if let Some(background) = background_override() {
+        return background;
+    }
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         return Background::Dark;
     }
@@ -343,28 +493,78 @@ mod tests {
         assert_eq!(xterm_index(0x58, 0x58, 0x58), 240);
     }
 
+    /// Each fill must stay a colour, not collapse into grey, on a 256-colour
+    /// terminal, and the fills must stay distinct from one another.
     #[test]
-    fn xterm_index_keeps_the_accent_violet() {
-        // [0x9c, 0x82, 0xff] lands in the cube's blue-violet corner, not the grey ramp.
-        let index = xterm_index(0x9c, 0x82, 0xff);
-        assert!((16..232).contains(&index), "{index} is not a cube colour");
+    fn fills_degrade_to_distinct_cube_colours() {
+        let fills = [YELLOW, VIOLET, MINT, PINK, ORANGE, RED];
+        let indices: Vec<u8> = fills
+            .iter()
+            .map(|&[r, g, b]| xterm_index(r, g, b))
+            .collect();
+
+        for (fill, index) in fills.iter().zip(&indices) {
+            assert!(
+                (16..232).contains(index),
+                "{fill:02x?} fell onto the grey ramp ({index})"
+            );
+        }
+        let mut distinct = indices.clone();
+        distinct.sort_unstable();
+        distinct.dedup();
+        assert_eq!(distinct.len(), fills.len(), "fills collide: {indices:?}");
     }
 
     #[test]
-    fn monochrome_uses_no_colour_at_all() {
-        let theme = Theme::new(Background::Dark, ColorDepth::Monochrome);
+    fn indexed_depth_sends_no_rgb() {
+        let theme = Theme::new(Background::Light, ColorDepth::Indexed);
 
-        assert_eq!(theme.accent().fg, Some(Color::Reset));
-        // Weight still carries emphasis.
-        assert!(theme.selected().add_modifier.contains(Modifier::BOLD));
+        assert!(matches!(theme.yellow, Color::Indexed(_)));
+        assert!(matches!(theme.ink, Color::Indexed(_)));
     }
 
     #[test]
-    fn backgrounds_pick_their_half_of_each_pair() {
+    fn dark_flips_borders_and_shadows_to_cream_but_keeps_the_fills() {
         let light = Theme::new(Background::Light, ColorDepth::TrueColor);
         let dark = Theme::new(Background::Dark, ColorDepth::TrueColor);
 
-        assert_eq!(light.text().fg, Some(Color::Rgb(0x18, 0x18, 0x1b)));
-        assert_eq!(dark.text().fg, Some(Color::Rgb(0xe8, 0xe8, 0xed)));
+        assert_eq!(light.ink, Color::Rgb(0x11, 0x11, 0x11));
+        assert_eq!(dark.ink, Color::Rgb(0xf5, 0xf0, 0xe1));
+        assert_eq!(dark.shadow, dark.ink);
+        assert_eq!(light.yellow, dark.yellow);
+        assert_eq!(light.violet, dark.violet);
+    }
+
+    /// Rule 3 of the spec: a coloured fill always carries `#111111` text, in
+    /// either theme.
+    #[test]
+    fn fills_carry_ink_text_in_both_themes() {
+        for background in [Background::Light, Background::Dark] {
+            let theme = Theme::new(background, ColorDepth::TrueColor);
+            let style = theme.fill(theme.mint);
+
+            assert_eq!(style.fg, Some(Color::Rgb(0x11, 0x11, 0x11)));
+            assert_eq!(style.bg, Some(theme.mint));
+        }
+    }
+
+    #[test]
+    fn monochrome_fills_are_reverse_video() {
+        let theme = Theme::new(Background::Dark, ColorDepth::Monochrome);
+
+        assert_eq!(theme.ink, Color::Reset);
+        assert!(
+            theme
+                .fill(theme.yellow)
+                .add_modifier
+                .contains(Modifier::REVERSED)
+        );
+    }
+
+    #[test]
+    fn the_override_accepts_light_and_dark_in_any_case() {
+        assert_eq!(parse_background("Light"), Some(Background::Light));
+        assert_eq!(parse_background("DARK"), Some(Background::Dark));
+        assert_eq!(parse_background("sepia"), None);
     }
 }

@@ -177,8 +177,10 @@ impl TextInput {
             .map_or(self.value.len(), |(offset, _)| offset)
     }
 
+    /// Inserts one character at the cursor, refusing what [`keys::sanitize`]
+    /// would strip, so typed text is as safe to draw as text from pass-cli.
     fn insert(&mut self, c: char) -> bool {
-        if c.is_control() || self.len() >= self.limit {
+        if !keys::is_displayable(c) || self.len() >= self.limit {
             return false;
         }
 
@@ -286,6 +288,16 @@ mod tests {
             KeyCode::Char('\u{1b}'),
             KeyModifiers::NONE
         ));
+        assert_eq!(input.value(), "");
+    }
+
+    #[test]
+    fn bidi_overrides_and_separators_are_not_text() {
+        let mut input = typed("");
+
+        for c in ['\u{202e}', '\u{2066}', '\u{2028}'] {
+            assert!(!press(&mut input, KeyCode::Char(c), KeyModifiers::NONE));
+        }
         assert_eq!(input.value(), "");
     }
 
