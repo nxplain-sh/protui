@@ -37,7 +37,7 @@ jobs:
       # components, and caches the build. RUSTFLAGS and cargo's warnings
       # setting are left alone, so CI compiles exactly as a local build does;
       # clippy denies warnings itself.
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           rustflags: ""
           build-warnings: warn
@@ -62,7 +62,7 @@ jobs:
 
       # An explicit toolchain is set as a directory override, which outranks
       # rust-toolchain.toml, so this job really builds with the minimum.
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           toolchain: ${{ steps.msrv.outputs.version }}
           rustflags: ""
@@ -83,7 +83,7 @@ jobs:
       # components, and caches the build. RUSTFLAGS and cargo's warnings
       # setting are left alone, so CI compiles exactly as a local build does;
       # clippy denies warnings itself.
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           rustflags: ""
           build-warnings: warn
@@ -115,7 +115,7 @@ jobs:
           persist-credentials: false
 
       # cargo-deny reads the dependency graph through cargo.
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           rustflags: ""
           build-warnings: warn
