@@ -4,6 +4,6 @@
 # The oldest Rust protui supports is `rust-version` in Cargo.toml; CI tests
 # that one separately.
 [toolchain]
-channel = "1.99.1"
+channel = "1.100.0"
 components = ["clippy", "rustfmt"]
 profile = "minimal"
